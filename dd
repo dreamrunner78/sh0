@@ -1,0 +1,1066 @@
+create table dcp_images (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR NOT NULL,
+    type VARCHAR NOT NULL,
+    description VARCHAR default '',
+    enabled boolean default true,
+    registry VARCHAR NOT NULL,
+    repository VARCHAR NOT NULL,
+    tag VARCHAR NOT NULL,
+    pullsecret VARCHAR default '',
+    entrepriseedition boolean default false,
+    publicimage boolean default true,
+    appversion VARCHAR default '',
+    date_created timestamp default CURRENT_DATE,
+    date_updated timestamp default NULL
+);
+
+create table dcp_license_key (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR NOT NULL,
+    type VARCHAR NOT NULL,
+    value text NOT NULL,
+    date_created timestamp default CURRENT_DATE,
+    date_updated timestamp default NULL
+);
+
+
+create table dcp_models (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR NOT NULL,
+    description VARCHAR NOT NULL,
+    config TEXT NOT NULL,
+    version VARCHAR NOT NULL
+);
+
+create table dcp_instances (
+	id SERIAL PRIMARY KEY,
+	name VARCHAR NOT NULL,
+	description VARCHAR default '',
+	provider VARCHAR,
+	tenant VARCHAR default '',
+	randomstring VARCHAR NOT NULL,
+	config TEXT NOT NULL,
+	values TEXT,
+	status VARCHAR NOT NULL,
+	version VARCHAR NOT NULL,
+	exportmode SMALLINT default 0,
+	hostnames VARCHAR,
+	services VARCHAR,
+	createnamespace boolean ,
+	namespace VARCHAR,
+	instancetype VARCHAR  NOT NULL,
+	enableingress boolean,
+	ingresshostname VARCHAR,
+	linkingress varchar default '',
+	dnsname VARCHAR,
+	enableingresstls boolean,
+	securityenabled boolean,
+	ranger varchar default '',
+	date_created timestamp default CURRENT_TIMESTAMP,
+	date_updated timestamp default CURRENT_TIMESTAMP
+);
+
+create table dcp_events (
+id SERIAL PRIMARY KEY,
+id_assert BIGINT NOT NULL,
+type_asset VARCHAR NOT NULL,
+iduser VARCHAR NOT NULL,
+action TEXT NOT NULL,
+status VARCHAR NOT NULL,
+message TEXT,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+
+create table dcp_namespaces (
+	id SERIAL PRIMARY KEY,
+	name VARCHAR NOT NULL,
+	enabled boolean default true,
+	description VARCHAR NOT NULL,    
+	deployed boolean,
+	minuserid bigint,
+	maxuserid bigint,
+	annotations text,
+	labels text,
+	secrets text default '',
+	hostaliases text default '',
+	dnsconfig text default '',
+	provider varchar default '',
+	publicns boolean default true,
+	date_created timestamp default CURRENT_TIMESTAMP,
+	date_updated timestamp default NULL
+);
+
+create table dcp_storageclass (
+	id SERIAL PRIMARY KEY,
+	name VARCHAR NOT NULL,
+	enabled boolean default true,
+	description VARCHAR NOT NULL,
+	provider varchar default '',
+	sctype varchar default 'RWO',
+	annotations varchar default '',
+	date_created timestamp default CURRENT_TIMESTAMP,
+	date_updated timestamp default NULL
+);
+
+create table dcp_deploy_events (
+	id SERIAL PRIMARY KEY,
+	name VARCHAR NOT NULL,
+	operation VARCHAR default '',
+	status VARCHAR default 'SUCCESS',
+	instancetype VARCHAR default '',
+	code bigint default 0,
+	message text default '',
+	events text default '',
+	date_created timestamp default CURRENT_TIMESTAMP,
+	date_updated timestamp default NULL
+);
+
+create table dcp_service_accounts (
+	id SERIAL PRIMARY KEY,
+	name VARCHAR NOT NULL,
+	namespace varchar default '',
+	provider varchar default '',
+	roles text default '',
+	date_created timestamp default CURRENT_TIMESTAMP,
+	date_updated timestamp default NULL
+);
+
+
+create table dcp_sql_cluster_stats (
+id SERIAL PRIMARY KEY,
+clustername VARCHAR NOT NULL,
+stats text default '',
+date_created timestamp default CURRENT_TIMESTAMP,
+date_updated timestamp default NULL
+);
+
+
+create table dcp_sql_query_stats (
+id SERIAL ,
+clustername VARCHAR NOT NULL,
+queryid VARCHAR NOT NULL,
+stats text default '',
+date_created timestamp default CURRENT_TIMESTAMP,
+date_updated timestamp default null,
+primary key(clustername, queryid)
+);
+
+create table dcp_query_clusterstats (
+id SERIAL PRIMARY KEY,
+idcluster bigint,
+name VARCHAR,
+healthy boolean,
+runningQueries bigint,
+blockedQueries bigint,
+queuedQueries bigint,
+activeCoordinators bigint,
+activeWorkers bigint,
+runningDrivers bigint,
+totalAvailableProcessors bigint,
+reservedMemory numeric,
+totalInputRows bigint,
+totalInputBytes bigint,
+totalCpuTimeSecs bigint,
+date_created timestamp default CURRENT_TIMESTAMP,
+date_updated timestamp default NULL
+);
+create table dcp_query_history (
+id SERIAL PRIMARY KEY,
+idcluster bigint NOT NULL,
+idquery VARCHAR NOT NULL,
+url VARCHAR NOT NULL,
+route_group VARCHAR NOT NULL,
+username VARCHAR NOT NULL,
+source VARCHAR NOT NULL,
+query TEXT NOT NULL,
+gateway VARCHAR,
+date_created timestamp default CURRENT_TIMESTAMP,
+date_updated timestamp default NULL
+);
+create table dcp_query_platforms (
+id SERIAL PRIMARY KEY,
+name VARCHAR,
+description VARCHAR,
+createnamespace boolean,
+namespace VARCHAR,
+imagequeryid VARCHAR,
+enableranger boolean,
+ranger VARCHAR,
+auditenabled boolean,
+storageClassName VARCHAR,
+nodes TEXT,
+url VARCHAR,
+rule text,
+date_created timestamp default CURRENT_TIMESTAMP,
+date_updated timestamp default NULL
+);
+
+create table dcp_query_platforms_nodes (
+id SERIAL PRIMARY KEY,
+idplatform bigint,
+groupname VARCHAR,
+rule text,
+date_created timestamp default CURRENT_TIMESTAMP,
+date_updated timestamp default NULL
+);
+
+create table dcp_query_platforms_node_usergroup (
+id SERIAL PRIMARY KEY,
+idnode bigint,
+usergroup VARCHAR,
+date_created timestamp default CURRENT_TIMESTAMP,
+date_updated timestamp default NULL
+);
+create table dcp_query_platforms_clusters (
+id SERIAL PRIMARY KEY,
+clustercount bigint,
+clustername VARCHAR,
+clustertype VARCHAR,
+routinggroup VARCHAR,
+date_created timestamp default CURRENT_TIMESTAMP,
+date_updated timestamp default NULL
+);
+
+create table dcp_query_platforms_node_cluster (
+id SERIAL PRIMARY KEY,
+idnode bigint,
+idcluster bigint,
+date_created timestamp default CURRENT_TIMESTAMP,
+date_updated timestamp default NULL
+);
+
+create table dcp_query_platforms_cluster_instance (
+id SERIAL PRIMARY KEY,
+idcluster bigint,
+idinstance bigint,
+date_created timestamp default CURRENT_TIMESTAMP,
+date_updated timestamp default NULL
+);
+
+create table dcp_query_platforms_catalogs (
+id SERIAL PRIMARY KEY,
+idplatform bigint,
+catalogname VARCHAR,
+date_created timestamp default CURRENT_TIMESTAMP,
+date_updated timestamp default NULL
+);
+
+create table dcp_gateway_backend (
+id SERIAL PRIMARY KEY,    
+name VARCHAR NOT NULL,
+route_group VARCHAR NOT NULL,
+url VARCHAR NOT NULL,
+ingress VARCHAR,
+active boolean,
+idcluster bigint,
+idinstance bigint,
+gateway VARCHAR NOT NULL,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+create table dcp_query_platforms_usergroups (
+id SERIAL PRIMARY KEY,
+idplatform bigint,
+usergroupname VARCHAR,
+date_created timestamp default CURRENT_TIMESTAMP,
+date_updated timestamp default NULL
+);
+
+create table dcp_job_instances (
+id SERIAL PRIMARY KEY,
+name VARCHAR NOT NULL,
+description VARCHAR,
+createnamespace boolean,
+namespace VARCHAR,    
+config TEXT,
+jobtype VARCHAR,
+enabled boolean,
+podlabels text,
+podannotations text,
+sparkversionid bigint,
+sparkversion VARCHAR,
+sparkmainapplication VARCHAR,
+sparkmainjar VARCHAR,
+sparkextrajar VARCHAR,
+sparkargs VARCHAR,
+storageclassname VARCHAR,
+enablemonitoring boolean,
+monitoringcluster VARCHAR,
+enablelogging boolean,
+logcluster VARCHAR,
+priorityclassname VARCHAR,
+schedulername VARCHAR,
+enablecommand boolean,
+sparkcommand VARCHAR,
+operator VARCHAR,
+sparkcluster VARCHAR,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+create table dcp_spark_applications_root (
+id SERIAL PRIMARY KEY,
+name VARCHAR NOT NULL,
+description VARCHAR,	
+providers text,
+randomstring varchar,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+create table dcp_spark_applications_obj (
+	id SERIAL PRIMARY KEY,
+	name VARCHAR NOT NULL,
+	description varchar,
+	currentprovider varchar NOT NULL,
+	namespace varchar NOT NULL,
+	sparktype varchar NOT NULL,
+	linkingress varchar,
+	linklineage varchar default '',
+	linkhistory varchar default '',
+	linkmonitoring varchar default '',
+	operator varchar default 'dcpoperator',
+	enabled boolean default true not null,
+	config text,
+	date_created timestamp default CURRENT_TIMESTAMP,
+	date_updated timestamp default CURRENT_TIMESTAMP
+);
+
+create table dcp_spark_applications (
+id SERIAL PRIMARY KEY,
+idparent bigint,
+name VARCHAR NOT NULL,
+description VARCHAR,
+randomString varchar,
+currentprovider varchar,
+enabled boolean,
+createnamespace boolean,    
+namespace VARCHAR,
+runasuser bigint,
+operator VARCHAR,
+sparkoperator varchar default '',
+sparkcluster varchar,
+sparkversion varchar,
+storageclassname varchar,
+specifyserviceaccount boolean,
+servicecaccount varchar,
+schedulername varchar,
+priority varchar,
+vqueue varchar,
+vpodgroups boolean,
+yqueue varchar,
+ycompletequeue varchar default '',
+ypodgroupsminimum bigint default 1,
+ypodgroups boolean,
+enablecommand boolean,
+sparkcommand varchar,
+sparktype varchar,
+classtype boolean default true,
+sparkmainapplication varchar,
+sparkmainjar varchar,
+sparkextrajarList text,
+sparkextrapyList text,
+sparkextrafilesList text,
+sparkargs text,
+drivermemoryoverhead numeric,
+daenabled boolean default false,
+minExecutors bigint default 1,
+maxExecutors bigint default 1,
+initialExecutors bigint default 1,
+podbatchsize bigint default 20,
+executorIdleTimeout bigint default '600',
+schedulerBacklogTimeout bigint default '60',
+driverrequestcore bigint default 1,
+driverunitrequestcore varchar default 'c',
+driverlimitcore bigint default 1,
+driverunitlimitcore varchar default 'c',    
+driverlimitmemory bigint default 1024,
+driverunitmemory varchar default 'Mi',
+driverlabels text,
+driverextrajava text,
+driverannotations text,
+driverpodscc text,
+drivercontainersc text,
+executorinstances bigint default 1,
+executorrequestcore bigint default 1,
+executorunitrequestcore varchar default 'c',
+executorlimitcore bigint default 1,
+executorunitlimitcore varchar default 'c',
+executorlimitmemory bigint default 1024,
+executorunitmemory varchar default 'Mi',
+executorlabels text,
+executorextrajava text,
+executorannotations text,
+executorpodscc text,
+executorcontainersc text,
+enableshuffle boolean,
+shuffledircount bigint default 1,
+shufflesize bigint default 1,
+shuffledirectory varchar default '/data',
+enablecheckpoint boolean,
+checkpointsize bigint default 1,
+checkpointdirectory varchar default '/checkpoint',
+enabletmpdir boolean default false,
+tempdirsize varchar default 1,
+tempdirectory varchar default '/tmp',
+config text,
+enableui boolean default false,
+enableprometheus boolean default false,
+enablemonitoring boolean default false,
+monitoringcluster varchar,
+enablelogging boolean default false,
+logcluster varchar,
+yaml text,
+vgroupyaml text,
+buckets text default '',
+secrets text default '',
+hadoopcluster varchar default '',
+keytab varchar default '',
+addallcertificate boolean default true,
+certificates	 varchar default '',
+enablelineage boolean default false,
+lineagespace varchar default  '',
+useconfigmap  boolean default false,
+enableauthent boolean default false,
+tenant varchar default  '',
+realm varchar default  '',
+clientid varchar default  '',
+clientsecret varchar default  '',
+keycloakname varchar default  '',
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+create table dcp_spark_y_queues (
+id SERIAL PRIMARY key,
+name varchar,
+description varchar,
+enabled boolean default true,
+parent boolean default false,
+parentqueue varchar,
+maxapplications bigint default -1,
+applicationsortpolicy varchar default 'fair',	
+guaranteedcpu bigint default 1,
+guaranteedmemory bigint default 1,
+maximumcpu bigint default 1,
+maximummemory bigint default 1,
+providers text,
+synced boolean default false,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+create table dcp_spark_y_queues_state (
+id SERIAL PRIMARY key,
+synced boolean default false,
+yaml text,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+create table dcp_spark_v_queues (
+id SERIAL PRIMARY key,
+name varchar,
+description varchar,
+enabled boolean default true,
+weight bigint default 1,
+reclaimable boolean default true,
+cpu bigint default 4,
+memory bigint default 4096,
+providers text,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+create table dcp_spark_v_groups (
+id SERIAL PRIMARY key,
+name varchar,
+description varchar,
+enabled boolean default true,
+namespace varchar,
+minMember bigint default 1,
+cpu bigint default 1,
+memory bigint default 4096,
+priorityclassname varchar default '',
+queue varchar default '',
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+
+create table dcp_spark_pod_metrics (
+id SERIAL PRIMARY key,
+uid varchar,
+name varchar,
+namespace varchar,
+sparkappname varchar,
+dcpapplicationname varchar,
+sparkappselector varchar,
+sparkrole varchar,
+sparkversion varchar,
+status varchar,
+hostIP varchar,
+creationdate timestamp,
+dateformat date,
+queue varchar,
+resourceVersion varchar,
+intresourceVersion bigint default 0,
+requestcpu varchar,
+requestmemory varchar,
+limitcpu varchar,
+limitmemory varchar,
+ownerreferencename varchar,
+ownerreferenceuid varchar,
+sparkscheduler varchar,
+sparkschedulergroup varchar,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+create table dcp_job_instance_config (
+id SERIAL PRIMARY KEY,	
+idjob bigint NOT NULL,
+configtype VARCHAR NOT NULL,
+config text,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+create table dcp_job_types (
+id SERIAL PRIMARY KEY,
+jobtype VARCHAR,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+create table dcp_pipeline_instance (
+id SERIAL PRIMARY KEY,	
+name VARCHAR NOT NULL,
+description VARCHAR default '',
+config text,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+create table dcp_priority_class (
+id SERIAL PRIMARY KEY,	
+name VARCHAR NOT NULL,
+description VARCHAR NOT NULL,
+value bigint,
+preemptionPolicy VARCHAR,
+globalDefault boolean,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+
+create table dcp_mainframe_feed (
+id SERIAL PRIMARY KEY,	
+feedname VARCHAR NOT NULL,
+format bigint,
+format_label VARCHAR,
+split bigint,
+split_label VARCHAR,
+encoding VARCHAR,
+structure bigint,
+structure_label VARCHAR,
+copybook text,
+selectedField VARCHAR,
+selectedValues text,
+config text,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+
+create table dcp_airflow_dags (
+id SERIAL PRIMARY KEY,	
+instancename VARCHAR NOT NULL,
+dagname VARCHAR NOT NULL,	
+version VARCHAR NOT null default '1.0',	
+content text,
+deployed boolean default false,	
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+create table dcp_query_sql (
+id SERIAL PRIMARY KEY,
+name VARCHAR NOT NULL,
+randomstring VARCHAR NOT NULL,
+description VARCHAR,
+queryserver VARCHAR NOT NULL,
+version VARCHAR NOT null default '1.0',	
+content text,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+
+create table dcp_buckets (
+id SERIAL PRIMARY key,
+name varchar,
+description varchar,
+enabled boolean default true,
+type varchar default 'data',
+dcp boolean default false,
+endpoint varchar,
+accesskey varchar,
+secretkey varchar,
+region varchar default '',
+styleaccess boolean,
+signertype varchar default 'S3SignerType',
+sslmode boolean default true,
+enablesecret boolean default false,
+secret varchar default '',
+awsbucket boolean default false,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+
+create table dcp_cloud_providers (
+	id SERIAL PRIMARY key,
+	name varchar,
+	description varchar,
+	enabled boolean default true,
+	provider varchar,
+	endpoint varchar,	
+	kubehost varchar,
+	kubeport bigint,
+	defaultingress varchar,
+	endpointpodmetrics varchar,
+	endpointpodlog varchar,
+	dcpsparkoperator boolean default true,
+	gsparkoperator boolean default false,
+	vscheduler boolean,
+	yscheduler boolean,
+	ingressnumber boolean default false,
+	enableroute boolean default false,
+	nginxannotation text,
+	certificate text default '',
+	ldapgroupprovider text default '',
+	ldapconfiguration text default '',
+	ldapcertificate text default '',
+	ldapairflowprovider text DEFAULT '',
+	additionalCertificate text default '',
+	ldapconfigs text default '',
+	ldapurl varchar default '',
+	externalSecure boolean default true,
+	insecureEdgeTerminationPolicy varchar default 'Allow',
+	readonlyfs boolean default false,
+	isopenshift boolean default false,
+	date_created timestamp default CURRENT_DATE,
+	date_updated timestamp default NULL
+);
+
+create table dcp_spark_artifacts (
+id SERIAL PRIMARY key,
+name varchar,
+description varchar,
+application varchar,
+bucket varchar,
+completepath varchar,
+size bigint,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+
+create TABLE dcp_secrets (
+	id SERIAL PRIMARY key,
+	name varchar,
+	description varchar,
+	provider varchar,
+	source varchar default 'internal',
+	namespace varchar,	
+	refreshinterval bigint,
+	dcpSecretStoreKeyRefs text not null,
+	dcpSecretStoreSimples text not null,
+	date_created timestamp default CURRENT_DATE,
+	date_updated timestamp default NULL
+);
+
+create table dcp_admin_users (
+	id SERIAL PRIMARY key,
+	enabled boolean default true,
+	userfirstname varchar not null,
+	userlastname varchar not null,
+	useremail varchar,
+	userid varchar,
+	date_created timestamp default CURRENT_DATE,
+	date_updated timestamp default NULL
+);
+
+create table dcp_admin_groups (
+	id SERIAL PRIMARY key,
+	enabled boolean default true,
+	groupname varchar not null,
+	groupdescription varchar,
+	isadmin boolean default false,
+	date_created timestamp default CURRENT_DATE,
+	date_updated timestamp default NULL
+);
+
+
+create table dcp_admin_user_groups (
+	id SERIAL PRIMARY key,
+	groupid bigint not null,
+	userid bigint not null,
+	date_created timestamp default CURRENT_DATE,
+	date_updated timestamp default NULL
+); 
+
+
+create table dcp_admin_policies (
+id SERIAL PRIMARY key,
+servicename varchar not null,
+enabled boolean default true,
+policyname varchar not null,	
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+create table dcp_admin_group_policies (
+	id SERIAL PRIMARY key,
+	groupid bigint not null,
+	policyid bigint not null,
+	date_created timestamp default CURRENT_DATE,
+	date_updated timestamp default NULL
+);
+
+create table dcp_admin_groups_services (
+	id SERIAL PRIMARY key,
+	groupid bigint not null,
+	instanceid bigint not null,
+	instancetype varchar not null,
+	role varchar not null default '*',
+	date_created timestamp default CURRENT_DATE,
+	date_updated timestamp default NULL
+);
+
+
+
+create table dcp_admin_group_ns (
+	id SERIAL PRIMARY key,
+	groupid bigint not null,
+	namespaceid bigint not null,
+	date_created timestamp default CURRENT_DATE,
+	date_updated timestamp default NULL
+);
+
+
+
+create table dcp_admin_group_sc (
+	id SERIAL PRIMARY key,
+	groupid bigint not null,
+	scid bigint not null,
+	date_created timestamp default CURRENT_DATE,
+	date_updated timestamp default NULL
+);
+
+
+create table dcp_admin_group_hadoop (
+	id SERIAL PRIMARY key,
+	groupid bigint not null,
+	hadoopid bigint not null,
+	date_created timestamp default CURRENT_DATE,
+	date_updated timestamp default NULL
+);
+
+create table dcp_admin_group_image (
+	id SERIAL PRIMARY key,
+	groupid bigint not null,
+	imageid bigint not null,
+	date_created timestamp default CURRENT_DATE,
+	date_updated timestamp default NULL
+);
+
+
+
+
+
+create table dcp_catalogs (
+	id SERIAL PRIMARY KEY,
+	name VARCHAR NOT NULL,
+	description VARCHAR NOT NULL,
+	expertmode boolean,   
+	catalogtype VARCHAR NOT NULL, 
+	extraconfigs text default '',
+	config TEXT NOT NULL,
+	configexpert TEXT NOT NULL
+);
+
+create table dcp_binary_data (
+id SERIAL PRIMARY key,
+name varchar not null,
+description varchar,
+enabled boolean default true,
+idservice bigint not null,
+servicename varchar not null,
+dcptype varchar not null,
+filepath varchar not null,
+principal varchar default '',
+isbinary boolean default false,
+content text,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+
+create table dcp_catalaog_resources (
+	id SERIAL PRIMARY key,
+	catalogname varchar not null,
+	resourcename varchar not null,
+	date_created timestamp default CURRENT_DATE,
+	date_updated timestamp default NULL
+);
+
+
+create table dcp_hadoopclusters (
+	id SERIAL PRIMARY KEY,
+	name VARCHAR NOT NULL,
+	description VARCHAR NOT NULL,
+	enabled boolean default true,   
+	hdfssite text default '',
+	coresite text default '',
+	hivesite text default '',
+	kerberos text default '',
+	keytabs text default '',
+	publicconf boolean default true,
+	date_created timestamp default CURRENT_DATE,
+	date_updated timestamp default NULL
+);
+
+
+create table dcp_spark_mainclass (
+id SERIAL PRIMARY KEY,
+name VARCHAR NOT NULL,
+iduser bigint,
+idgroup bigint,
+date_created timestamp default CURRENT_DATE,
+date_updated timestamp default NULL
+);
+
+
+create table dcp_params (
+	id SERIAL PRIMARY KEY,
+	name VARCHAR NOT NULL,
+	config text,
+	date_created timestamp default CURRENT_DATE,
+	date_updated timestamp default NULL
+);
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('temurin_jre_17', 'java', 'Java 17 (eclipse-temurin)', 'docker.io','befteam2022/eclipse-temurin','17-jre','',false);
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('java11', 'java', 'Java 11', 'docker.io','befteam2022/ubuntu-java11-python3','1.0.0','',false);
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('box', 'box', 'Light posix client', 'docker.io','befteam2022/dcp-box','1.0.0','',false);
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('zookeeper', 'zookeeper', 'Install zookeeper', 'docker.io','befteam2022/dcp-zookeeper','1.0.0','',false);
+
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('proxy', 'proxy', 'DCP proxy', 'docker.io','befteam2022/proxy','1.0.0','',false);
+
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('spark_3.3.2_h2', 'spark', 'Spark 3.3.2 java 11 scala 2.12 python3 hadoop2', 'docker.io','befteam2022/spark','3.3.2-j11-p3-h2-1.0.0','',false);
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('spark_3.3.2_h3', 'spark', 'Spark 3.3.2 java 11 scala 2.12 python3 hadoop3', 'docker.io','befteam2022/spark','3.3.2-j11-p3-h3-1.0.0','',false);
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('spark_3.5.0_h3', 'spark', 'Spark 3.5.0 java 17 scala 2.12 python3 hadoop3', 'docker.io','befteam2022/spark','3.5.0-j17-p3-h3-1.0.0','',false);
+
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('sparkoperator-3.1.1', 'sparkoperator', 'Spark Operator 3.1.1', 'docker.io','befteam2022/spark-operator','v1beta2-1.3.8-3.1.1-1.0.0','',false);
+
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('grafana', 'grafana', 'image to install grafana', 'docker.io','grafana/grafana','8.3.1','',false);
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('influx', 'influx', 'image to install influx', 'docker.io','influxdb','1.8.10','',false);
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('postgresql', 'postgres', 'image to install postgresql database', 'docker.io','befteam2022/dcp-pgs','15.4.0-debian-11-r10','',false);
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('hive_metastore', 'hms', 'image to install hive metastore', 'docker.io','befteam2022/metastore-3.1.2-j11','1.0.0','',false);
+
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('solr', 'solr', 'image to install solr audit service', 'docker.io','befteam2022/dcp-solr','8.9.0-1.0.0','',false);
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('ranger', 'ranger', 'image to install ranger service', 'docker.io','befteam2022/dcp-ranger','1.0.0','',false);
+
+delete from dcp_images di where type='trino'
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('sql_428', 'trino', 'install sql engine', 'docker.io','befteam2022/dcp-sql','428-1.0.0','',false);
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('startburst', 'trino', 'image to install starburst', 'docker.io','befteam2022/dcp-query-sep','412','',true);
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('notebook', 'notebook', 'image to install single notebook', 'docker.io','befteam2022/dcp-notebook','1.0.0','',false);
+
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('notebook-3.5.0', 'notebook', 'image to install single notebook', 'docker.io','befteam2022/dcp-notebook-3.5.0','1.0.0','',false);
+
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('oauth', 'oauth', 'image to install oauthproxy', 'docker.io','befteam2022/dcp-oauthproxy','1.0.0','',false);
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('proxy', 'proxy', 'image to install global dcp proxy', 'docker.io','befteam2022/proxy','1.0.0','',false);
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('keycloak', 'keycloak', 'image to install keycloak', 'docker.io','befteam2022/dcp-keycloak','1.0.0','',false);
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('airflow', 'airflow', 'image to install airflow', 'docker.io','befteam2022/dcp-airflow','2.7.0','',false);
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('airflow-hook', 'airflow', 'image to install airflow with hooks', 'docker.io','befteam2022/dcp-airflow-hook','2.7.0','',false);
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('airflow_sync', 'airflow_sync', 'image to install dcp airflow sync', 'docker.io','befteam2022/dcp-sync','1.0.0','',false);
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('prometheus', 'prometheus', 'image to install prometheus', 'docker.io','befteam2022/dcp-prometheus','1.0.0','',false);
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('statsd', 'statsd', 'image to install airflow statsd', 'docker.io','befteam2022/dcp-statsd','v0.22.8','',false);
+
+
+insert into dcp_images (name, type, description, registry, repository, tag, pullsecret, entrepriseedition) 
+values ('nifi', 'nifi', 'image to install nifi', 'docker.io','befteam2022/dcp-nifi','1.16.3-1.0.0','',false);
+
+
+insert into dcp_priority_class (name,description,value,preemptionPolicy,globalDefault) values('routine','Routine priority',2,'Never',false);
+insert into dcp_priority_class (name,description,value,preemptionPolicy,globalDefault) values('urgent','Urgent priority',10,'Never',false);
+insert into dcp_priority_class (name,description,value,preemptionPolicy,globalDefault) values('exceptional','Exceptional priority',50,'Never',false);
+insert into dcp_priority_class (name,description,value,preemptionPolicy,globalDefault) values('rush','Rush priority',100,'PreemptLowerPriority',false);
+
+insert into dcp_job_types (jobtype) values('spark');
+insert into dcp_job_types (jobtype) values('python');
+insert into dcp_job_types (jobtype) values('docker');
+
+insert into dcp_license_key(name,type,value) values('starburst','trino','{
+"base64Signature": "qnLIWbFloj5qfCeKzUC0EGh7uHwNKeF6bw8mPmO5LCTJXqk/aQh5c5Tyk4/ocHTix4yIHl80z2liPTeutQQeFgN6y78+qADn3aUAaL72jY+9BJMZeTJHPGQopJuJxqK/Wv2P/5qjMIgarxGW1JZwLN5GE1uMUCYAryb6YmiVSjhNM3gyJQrWmCWLliSJF8Y1W3DEuko8/6FnQWmEhXJI1xHbCxeY2DHC8+Rms8+6OterXJ0jLeDnXXLkKSsBW5OO3Veg2bXEz6W5nRStp8ktZK6eA1U6RM0opjgcSl3LXwHJ8pGDkdV++OSWVjfylsfjZGmC3QJIVOTDKjTDnpSQMdV2RVes0U1LFprzcZLHTWqbNLtwKLGlQTNJ8VY/HtWJHkS7pUWzGSfxoLasXBr6kDvLkl8JMt9IiSIjbchQVOQkfk2tvrvaTQ5PeS6lAXsVdirU/oBbpI0zOl4WNaP/AIOAMMiccMh9hbObs/sXs4mNAxhHQT/QaqScfzbbvES6Tbh4soiAThRP0LkXUXCA3+dik/M9PQC/uGLJIiQKijVlT3Tl2UMB3jc7qUuACA6uk32zd1AsmYpMDqbczmOVvlTzOqSgyzq/eBThjUVKD018JYiH7stSV8Tl+7Zf3r+UFiZLllXaVF1n3XeKRZZBqX7rv/ndVFQmNbTzuNtu00U=",
+"expiry": "2023-05-31T00:00:00",
+"features": [
+"*"
+],
+"owner": "DCP Technologies"
+}
+');
+
+
+CREATE INDEX dcp_spark_pod_metrics_index ON dcp_spark_pod_metrics (uid, resourceVersion);
+CREATE INDEX dcp_spark_pod_metrics_index_rolname ON dcp_spark_pod_metrics (sparkrole, dcpapplicationname);
+CREATE INDEX dcp_spark_pod_metrics_index_rolname ON dcp_spark_pod_metrics (sparkrole, dcpapplicationname);
+CREATE INDEX dcp_sql_query_stats_index ON dcp_sql_query_stats (date_created);
+CREATE INDEX dcp_deploy_events_index ON dcp_deploy_events (name);
+
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('namespace',true,'CREATE_NAMESPACE');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('namespace',true,'DELETE_NAMESPACE');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('namespace',true,'DEPLOY_NAMESPACE');
+
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('image',true,'CREATE_IMAGE');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('image',true,'DELETE_IMAGE');
+
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('hadoop',true,'CREATE_HADOOP');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('hadoop',true,'DELETE_HADOOP');
+
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('workspace',true,'CREATE_WORKSPACE');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('workspace',true,'RUN_WORKSPACE');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('workspace',true,'DELETE_WORKSPACE');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('workspace',true,'VIEWCONF_WORKSPACE');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('v',true,'IMPORT_WORKSPACE');
+
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkapps',true,'CREATE_SPARKAPPLICATION');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkapps',true,'RUN_SPARKAPPLICATION');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkapps',true,'DELETE_SPARKAPPLICATION');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkapps',true,'VIEWCONF_SPARKAPPLICATION');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkapps',true,'VIEWMONITORING_SPARKAPPLICATION');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkapps',true,'IMPORT_SPARKAPPLICATION');
+
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkcluster',true,'CREATE_SPARKCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkcluster',true,'RUN_SPARKCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkcluster',true,'DELETE_SPARKCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkcluster',true,'VIEWCONF_SPARKCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkcluster',true,'IMPORT_SPARKCLUSTER');
+
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkmonitoring',true,'CREATE_SPARKMONITORING');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkmonitoring',true,'RUN_SPARKMONITORING');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkmonitoring',true,'DELETE_SPARKMONITORING');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkmonitoring',true,'VIEWCONF_SPARKMONITORING');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkmonitoring',true,'IMPORT_SPARKMONITORING');
+
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkhistory',true,'CREATE_SPARKHISTORY');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkhistory',true,'RUN_SPARKHISTORY');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkhistory',true,'DELETE_SPARKHISTORY');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkhistory',true,'VIEWCONF_SPARKHISTORY');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkhistory',true,'IMPORT_SPARKHISTORY');
+
+
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('notebook',true,'CREATE_NOTEBOOK');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('notebook',true,'RUN_NOTEBOOK');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('notebook',true,'DELETE_NOTEBOOK');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('notebook',true,'VIEWCONF_NOTEBOOK');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('notebook',true,'IMPORT_NOTEBOOK');
+
+
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkartifact',true,'LIST_ARTIFACT');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkartifact',true,'UPLOAD_ARTIFACT');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sparkartifact',true,'DELETE_ARTIFACT');
+
+
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('airflow',true,'CREATE_AIRFLOW');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('airflow',true,'RUN_AIRFLOW');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('airflow',true,'DELETE_AIRFLOW');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('airflow',true,'VIEWCONF_AIRFLOW');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('airflow',true,'VIEWMONITORING_AIRFLOW');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('airflow',true,'IMPORT_AIRFLOW');
+
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sqlcluster',true,'CREATE_SQLCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sqlcluster',true,'RUN_SQLCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sqlcluster',true,'DELETE_SQLCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sqlcluster',true,'VIEWCONF_SQLCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('sqlcluster',true,'IMPORT_SQLCLUSTER');
+
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('ranger',true,'CREATE_RANGERCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('ranger',true,'RUN_RANGERCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('ranger',true,'DELETE_RANGERCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('ranger',true,'VIEWCONF_RANGERCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('ranger',true,'IMPORT_RANGERCLUSTER');
+
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('hms',true,'CREATE_HMSCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('hms',true,'RUN_HMSCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('hms',true,'DELETE_HMSCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('hms',true,'VIEWCONF_HMSCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('hms',true,'IMPORT_HMSCLUSTER');
+
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('audit',true,'CREATE_AUDITCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('audit',true,'RUN_AUDITCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('audit',true,'DELETE_AUDITCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('audit',true,'VIEWCONF_AUDITCLUSTER');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('audit',true,'IMPORT_AUDITCLUSTER');
+
+
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('keycloak',true,'CREATE_KEYCLOAK');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('keycloak',true,'RUN_KEYCLOAK');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('keycloak',true,'DELETE_KEYCLOAK');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('keycloak',true,'VIEWCONF_KEYCLOAK');
+insert into dcp_admin_policies(servicename, enabled, policyname) values ('keycloak',true,'IMPORT_KEYCLOAK');
