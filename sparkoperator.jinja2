@@ -1,0 +1,144 @@
+runasuser: "{{ runasuser }}"
+replicaCount: {{ replicaCount }}
+
+image:
+  repository: "{{registry}}/{{repository}}"
+  pullPolicy: IfNotPresent
+  tag: "{{tag}}"
+
+{%- if imagePullSecrets is defined and imagePullSecrets|length > 0 %}
+imagePullSecrets:
+{%- for secret in imagePullSecrets %}
+  - {{ secret }}
+{%- endfor %}
+{%- else %}
+imagePullSecrets: []
+{%- endif %}
+
+nameOverride: "{{nameOverride}}"
+
+fullnameOverride: "{{fullnameOverride}}"
+
+rbac:
+  create: false
+  createRole: true
+  createClusterRole: true
+
+serviceAccounts:
+  spark:
+    create: {{createappsserviceaccount}}
+    name: "{{appsservicecaccount}}"
+    annotations: {}
+  sparkoperator:
+    create: {{createserviceaccount}}
+    name: "{{servicecaccount}}"
+    annotations: {}
+
+sparkJobNamespace: "{{sparkJobNamespace}}"
+
+controllerThreads: 10
+
+resyncInterval: 30
+
+uiService:
+  enable: true
+
+
+ingressUrlFormat: ""
+
+logLevel: 2
+
+podSecurityContext: 
+  runAsNonRoot: true
+  runAsUser: {{ runasuser }}
+  fsGroup: {{ runasuser }}
+  
+
+securityContext:
+  readOnlyRootFilesystem: true
+  runAsUser: {{ runasuser }}
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+volumes:
+  - name: tmp
+    emptyDir: {}
+
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+
+webhook:
+  enable: {{enablewebhook}}
+  port: 8080
+  namespaceSelector: "{{namespaceSelector}}"
+  initAnnotations:
+    "helm.sh/hook": pre-install, pre-upgrade
+    "helm.sh/hook-weight": "50"
+  cleanupAnnotations:
+    "helm.sh/hook": pre-delete, pre-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded
+  timeout: 30
+
+metrics:
+  enable: {{enablemetrics}}
+  port: 10254
+  portName: metrics
+  endpoint: /metrics
+  prefix: ""
+
+podMonitor:
+  enable: {{enablepodmonitor}}
+  labels: {}
+  jobLabel: spark-operator-podmonitor
+  podMetricsEndpoint:
+    scheme: http
+    interval: 5s
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+{%- if podAnnotations is defined and podAnnotations|length > 0 %}
+podAnnotations:
+{%- for podAnnotation in podAnnotations %}
+  {{ podAnnotation.name }}: "{{ podAnnotation.value }}"
+{%- endfor %}
+{%- else %}
+podAnnotations: {}
+{%- endif %}
+
+{%- if podLabels is defined and podLabels|length > 0 %}
+podLabels:
+{%- for podLabel in podLabels %}
+  {{ podLabel.name }}: "{{ podLabel.value }}"
+{%- endfor %}
+{%- else %}
+podLabels: {}
+{%- endif %}
+
+resources:
+  requests:
+    cpu: {{  requestcpu }}{% if unitrequestcpu == "m" %}m{% endif %}
+    memory: {{  requestmem }}{{ unitrequestmem }}    
+  limits: 
+    cpu: {{  limitcpu }}{% if unitlimitcpu == "m" %}m{% endif %}
+    memory: {{ limitmem }}{{ unitlimitmem }}
+
+batchScheduler:
+  enable: {{enablebatchscheduler}}
+
+resourceQuotaEnforcement:
+  enable: false
+
+leaderElection:
+  lockName: "{{lockName}}"
+  lockNamespace: "{{lockNamespace}}"
+
+istio:
+  enabled: false
+
+labelSelectorFilter: ""

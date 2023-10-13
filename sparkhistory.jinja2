@@ -1,0 +1,418 @@
+name: "{{ name }}"
+nameOverride: "{{ nameOverride }}"
+fullnameOverride: "{{ fullnameOverride }}"
+namespaceOverride: "{{ namespace }}"
+runasuser: "{{ runasuser }}"
+
+clusterDomain: "{{ clusterDomain }}"
+
+storageClassName: "{{ storageClassName }}"
+{%- if storageclassannotation is defined %}
+storageclassannotation:
+{{ storageclassannotation|indent(2, True) }}
+{%- else %}
+storageclassannotation: {}
+{%- endif %}
+
+enablemonitoring: "{{ enablemonitoring }}"
+
+enablepasswd: {{ enablepasswd }}
+
+enableingresstls: {{ enableingresstls }}
+usedcpingress: {{usedcpingress}}
+enableauthent: {{enableauthent}}
+
+finaldaemonconfiguration: "{{ finaldaemonconfiguration }}"
+
+sparkinitimage: "{{ sparkinitimage }}"
+
+global:
+  {%- if imagePullSecrets is defined and imagePullSecrets|length > 0 %}
+  imagePullSecrets:
+  {%- for imagePullSecret in imagePullSecrets %}
+    - {{ imagePullSecret }}
+  {%- endfor %}
+  {%- else %}
+  imagePullSecrets: []
+  {%- endif %}
+
+proxy:
+  registry: "{{ proxyregistry }}"
+  repository: "{{ proxyrepository }}"
+  pullPolicy: "{{ pullpolicy }}"
+  tag: "{{ proxytag }}"
+  resources:
+    requests:
+       memory: {{ requestmemproxy }}{{ unitrequestmemproxy }}
+       cpu: {{ requestcpuproxy }}{% if unitrequestcpuproxy == "m" %}m{% endif %}   
+    limits: 
+      memory: {{ limitmemproxy }}{{ unitlimitmemproxy }}
+      cpu: {{ limitcpuproxy }}{% if unitlimitcpuproxy == "m" %}m{% endif %} 
+
+
+oauth:
+  registry: "{{ oauthregistry }}"
+  repository: "{{ oauthrepository }}"
+  pullPolicy: "{{ pullpolicy }}"
+  tag: "{{ oauthtag }}"
+  pullSecrets: []
+  cookiesecret: "{{clientsecret}}"
+  oidcissuer: "{{ ingressUrl }}/realms/{{realm}}"
+  ingresshostname: "{{ ingresshostname }}"
+  proxyscope: "email openid profile"
+  allwedgroups: "{{realm}}"
+  allwedroles: "{{realm}},{{name}}"
+  idclient: "{{name}}"
+  clientsecret: "{{clientsecret}}"
+  realm: "{{realm}}"
+  setauthorizationheader: true
+  passauthorizationheader: true
+  skipproviderbutton: true
+  whitelistdomain: "{{ whitelistdomain }}"
+  redisurl: "{{ redisurl }}"
+  redispassword: "{{ redispassword }}"
+  sessionstore: "{{ sessionstore }}"
+
+image:
+  registry: "{{ registry }}"
+  repository: "{{ repository }}"
+  pullPolicy: "{{ pullpolicy }}"
+  tag: "{{ tag }}"
+  pullSecrets: []
+
+{%- if commonLabels is defined and commonLabels|length > 0 %}
+commonLabels:
+{%- for commonLabel in commonLabels %}
+  {{ commonLabel.name }}: "{{ commonLabel.value }}"
+{%- endfor %}
+{%- else %}
+commonLabels: {}
+{%- endif %}
+
+{%- if commonAnnotations is defined and commonAnnotations|length > 0 %}
+commonAnnotations:
+{%- for commonAnnotation in commonAnnotations %}
+  {{ commonAnnotation.name }}: "{{ commonAnnotation.value }}"
+{%- endfor %}
+{%- else %}
+commonAnnotations: {}
+{%- endif %}
+
+{%- if podLabels is defined and podLabels|length > 0 %}
+podLabels:
+{%- for podLabel in podLabels %}
+  {{ podLabel.name }}: "{{ podLabel.value }}"
+{%- endfor %}
+{%- else %}
+podLabels: {}
+{%- endif %}
+
+{%- if podAnnotations is defined and podAnnotations|length > 0 %}
+podAnnotations:
+{%- for podAnnotation in podAnnotations %}
+  {{ podAnnotation.name }}: "{{ podAnnotation.value }}"
+{%- endfor %}
+{%- else %}
+podAnnotations: {}
+{%- endif %}
+
+
+{%- if securityContext is defined and securityContext|length > 0 %}
+securityContext:
+{%- for item in securityContext %}
+  {{ item.name }}: {{ item.value }}
+{%- endfor %}
+{%- else %}
+securityContext: {}
+{%- endif %}
+
+diagnosticMode:
+  enabled: {{ diagnosticMode }}
+  command:
+    - sleep
+  args:
+    - infinity
+  
+containerSecurityContext:
+  enabled: true
+  runAsNonRoot: true
+  runAsUser: {{ runasuser }}
+  allowPrivilegeEscalation: false
+  seccompProfile:
+    type: RuntimeDefault
+  capabilities:
+    drop: ["ALL"]
+
+podSecurityContext:
+  enabled: true
+  runAsNonRoot: true
+  runAsUser: {{ runasuser }}
+  fsGroup: {{ runasuser }}
+
+hostNetwork: false
+
+{%- if dnsConfig is defined %}
+dnsConfig:
+{{ dnsConfig|indent(2, True) }}
+{%- else %}
+dnsConfig: []
+{%- endif %}
+
+{%- if hostAliases is defined %}
+hostAliases:
+{{ hostAliases|indent(2, True) }}
+{%- else %}
+hostAliases: []
+{%- endif %}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+topologySpreadConstraints: []
+
+priorityClassName: "{{ priorityclassname }}"
+
+schedulerName: "{{ kubeschedulername }}"
+
+updateStrategy:
+  type: RollingUpdate
+
+
+terminationGracePeriodSeconds: ""
+
+server:
+  sparkhome: /opt/spark
+  loglevel: {{ loglevel }}
+  storageClassName: {{ storageClassName }}
+  enablepasswd: {{ enablepasswd }}
+  runAsUser: "{{ runasuser }}"
+  persistence:
+    enabled: {{ enablestorage }}
+  s3disableCertChecking: {{ s3disableCertChecking }}
+
+serviceAccount:
+  enabled: true
+  create: {{ specifyserviceaccount }}
+  name: "{{ servicecaccount }}"
+  {%- if podAnnotations is defined and podAnnotations|length > 0 %}
+  annotations:
+  {%- for podAnnotation in podAnnotations %}
+    {{ podAnnotation.name }}: "{{ podAnnotation.value }}"
+  {%- endfor %}
+  {%- else %}
+  annotations: {}
+  {%- endif %}
+  automountServiceAccountToken: true  
+
+
+certmanager:
+  enabled: {{ certmanager }}
+  issuer: ca-issuer
+  duration: 8760h
+  renewBefore: 2208h
+  dnsNames:
+    - "*.svc.cluster.local" 
+    - "*.*.*.svc.cluster.local"
+    - "*.*.svc.cluster.local"
+    - "*.dcp-technologies.com"
+    - "*.test"
+    - "localhost"
+    - "*.apps.sandbox-m2.ll9k.p1.openshiftapps.com"
+
+security:
+  ssl:
+    autoGenerated: true
+
+service:
+  type: ClusterIP
+  
+conf:
+  sparkconf: |
+    spark.history.ui.port=4040
+    
+{{ internalconf|indent(4, True) }}
+
+{{ sparkconfigurations|indent(4, True) }}
+
+    spark.eventLog.enabled=true
+    spark.eventLog.dir=s3a://{{ bucketname }}/{{ name }}
+    spark.history.fs.logDirectory=s3a://{{ bucketname }}/{{ name }}
+    
+    {%- if usedcpingress %}
+    {%- if enableauthent %}
+    spark.ui.proxyBase=/{{ name }}
+    spark.ui.proxyRedirectUri=/
+    {%- else %}
+    spark.ui.proxyBase=/sparkui/{{ namespace }}/{{name}}-{{nameOverride}}-svc
+    spark.ui.proxyRedirectUri=/
+    {%- endif %}
+    {%- endif %}
+
+
+{%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+additionalCertificate:
+{%- for certificate in additionalCertificate %}
+  {{ certificate.name }}: |-
+{{ certificate.content|indent(4, True) }} 
+{%- endfor %}
+{%- else %}
+additionalCertificate: {}
+{%- endif %}
+{%- endif %}
+
+
+history:
+  replicas: {{ replicaCount }}
+
+  containerPorts:
+    webuiportname: http  
+    http: 4040
+    https: 4040
+    proxyportname: proxyhttp
+    proxyhttp: 8080
+    proxyhttps: 8080
+    oauthportname: oauthhttp
+    oauthhttp: 4180
+    oauthhttps: 4180
+    
+
+  command: 
+    - sh
+    - -c
+    - /opt/spark/sbin/start-history-server.sh
+  args: []
+
+  resources:
+    limits: 
+      memory: {{ limitmem }}{{ unitlimitmem }}
+      cpu: {{ limitcpu }}{% if unitlimitcpu == "m" %}m{% endif %}
+    requests:
+       memory: {{ requestmem }}{{ unitrequestmem }}
+       cpu: {{ requestcpu }}{% if unitrequestcpu == "m" %}m{% endif %}
+
+  env: []    
+      
+  extraVolumeMounts:
+    - name: work
+      mountPath: /tmp
+    - name: logs
+      mountPath: /opt/spark/logs
+  extraVolumes: []
+  pvctemplate:
+    - name: logs
+      size: {{ logsize }}G
+      {%- if podLabels is defined and podLabels|length > 0 %}
+      labels:
+      {%- for podLabel in podLabels %}
+        {{ podLabel.name }}: "{{ podLabel.value }}"
+      {%- endfor %}
+      {%- else %}
+      labels: {}
+      {%- endif %}
+    - name: work
+      size: {{ worksize }}Gi
+      {%- if podLabels is defined and podLabels|length > 0 %}
+      labels:
+      {%- for podLabel in podLabels %}
+        {{ podLabel.name }}: "{{ podLabel.value }}"
+      {%- endfor %}
+      {%- else %}
+      labels: {}
+      {%- endif %}      
+
+openshift:
+  enabled: {{ enableroute }}
+  externalSecure: {{ externalSecure }}
+  route:
+    host: {{ ingresshostname }}
+    {%- if usedcpingress %}
+    {%- if enableauthent %}
+    path: /{{ name }}
+    {%- else %}
+    path: /sparkui
+    {%- endif %}
+    {%- else %}
+    path: ""
+    {%- endif %}
+    targetPort: {{ targetPort }}
+    insecureEdgeTerminationPolicy: {{ insecureEdgeTerminationPolicy }}
+
+ingress:
+  {%- if not usedcpingress %}
+  enabled: {{ not enableroute }}
+  {%- elif enableauthent %}
+  enabled: {{ not enableroute }}
+  {%- else %}
+  enabled: false
+  {%- endif %}
+  
+  {%- if ingressnumber %}
+
+
+  {%- if usedcpingress %}
+  {%- if enableauthent %}
+  ingresstype: 4180
+  {%- else %}
+  ingresstype: 8080
+  {%- endif %}
+  {%- else %}
+  ingresstype: 4040
+  {%- endif %}
+  
+  
+  {%- else %}
+  {%- if enableauthent %}
+  ingresstype: oauthhttp
+  {%- else %}
+  ingresstype: http
+  {%- endif %}
+  {%- endif %}
+  pathType: ImplementationSpecific
+  apiVersion: ""
+  hostname: {{ ingresshostname }}
+  ingressClassName: ""
+  
+  {%- if usedcpingress %}
+  {%- if enableauthent %}
+  path: /{{ name }}
+  {%- else %}
+  path: /sparkui
+  {%- endif %}
+  {%- else %}
+  path: /{{ name }}
+  {%- endif %}
+  className: ""
+
+  {%- if nginxannotation is defined and nginxannotation|length > 0 %}
+  annotations:
+{{ nginxannotation|indent(4, True) }}
+    {%- if enableingresstls %}
+    #route.openshift.io/termination: passthrough
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    {%- endif %}
+  {%- else %}
+  annotations: {}
+  {%- endif %}
+  
+  tls: {{ enableingresstls }}
+  selfSigned: {{ enableingresstls }}
+  extraHosts: []
+  extraPaths: []
+  secrets: []
+  extraRules: []
+
+ca:
+  crt: {{ cacrt }}
+  key: {{ cakey }}
+tls:
+  crt: {{ tlscrt }}
+  key: {{ tlskey }}
+
+certificate: |-
+{{ certificate|indent(4, True) }}
+key: |-
+{{ key|indent(4, True) }}

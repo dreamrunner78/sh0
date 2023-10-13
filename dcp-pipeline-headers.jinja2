@@ -1,0 +1,230 @@
+compute_resources_{{randomstring}}=k8s.V1ResourceRequirements(
+    requests={
+        'memory': '512M',
+        'cpu': '10m'
+    },
+    limits={
+        'memory': '1024M',
+        'cpu': '1'
+    }
+)
+volume_config_{{randomstring}} = k8s.V1ConfigMapVolumeSource(name='dcp-passwd-{{name}}-cm')
+v_tmp_{{randomstring}} = k8s.V1Volume(
+    name="sparktemplate",
+    empty_dir=k8s.V1EmptyDirVolumeSource()
+)
+vm_{{randomstring}} = k8s.V1VolumeMount(mount_path="{{ sparkpodtemplatedir }}", name="sparktemplate", sub_path=None, read_only=False)
+volume_{{randomstring}} = k8s.V1Volume(name='passwd', config_map=volume_config_{{randomstring}})
+volume_mount_{{randomstring}} = k8s.V1VolumeMount(mount_path='/etc/passwd', name='passwd', sub_path='passwd', read_only=False)
+init_container_{{randomstring}} = k8s.V1Container(
+    name="dcp-spark-template-{{namerandomstring}}",
+    image="{{imagename}}",
+    volume_mounts=[vm_{{randomstring}}],
+    command=["sh", "-c"],
+    args=["""
+cat << EOF > {{ sparkpodtemplatedir }}/driver.yaml
+apiVersion: v1
+kind: Pod
+{%- if yscheduler %}
+metadata:
+  annotations:
+    yunikorn.apache.org/schedulingPolicyParameters: "placeholderTimeoutSeconds=30 gangSchedulingStyle=Hard"
+    yunikorn.apache.org/task-group-name: "spark-driver-{{ name }}-{{ randomstring }}"
+    yunikorn.apache.org/task-groups: |-
+      [{
+          "name": "spark-driver-{{ name }}-{{ randomstring }}",
+          "minMember": 1,
+          "minResource": {
+            "cpu": "{{ ydrivermincpu }}m",
+            "memory": "{{ yexdrivermincpu }}Mi"
+          }
+        },
+        {
+          "name": "spark-executor-{{ name }}-{{ randomstring }}",
+          "minMember":{{ ypodgroupsminimum }},
+          "minResource": {
+            "cpu": "{{ yexecutormincpu }}m",
+            "memory": "{{ yexecutorminmemory }}Mi"
+          }
+      }]
+{%- endif %}
+spec:
+  volumes:
+  {%- if passwd %}
+    - name: passwd
+      configMap:
+        name: dcp-passwd-{{ name }}-cm
+  {%- endif %}
+  {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+    - name: finalcacert
+      emptyDir: {}
+    - name: addcert
+      configMap:
+        name: dcp-addcert-{{ name }}-cm
+  {%- endif %}
+  {%- if kerberos %}
+    - name: keytabs
+      configMap:
+        name: dcp-keytab-{{ name }}-cm
+  {%- endif %}
+  {%- if dnsconfig %}
+  dnsConfig:
+{{ dnsconfig|indent(12, True)}}
+  {%- endif %}
+  {%- if hostaliases %}
+  hostAliases:
+    {{ hostaliases|indent(4)}}
+  {%- endif %}
+
+  securityContext:
+    {%- if driverPodScc is defined and driverPodScc|length > 0 %}
+    {%- for scc in driverPodScc %}
+    {{ scc }}
+    {%- endfor %}
+    {%- endif %}
+
+  {%- if enablesparkinitcontainer %}
+  initContainers:
+    - name: init-driver
+      image: {{ sparkinitimage }}
+      imagePullPolicy: "IfNotPresent"
+      command:
+        - sh
+        - -c
+        - |
+          {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+          cp {{ cacert }} /opt/finalcacert/cacerts
+          chmod 777 /opt/finalcacert/cacerts
+          {%- for cert in additionalCertificate %}
+          #keytool -v -list -keystore /opt/finalcacert/cacerts -storepass changeit | grep dcp-{{cert.name}}
+          keytool -import -noprompt -trustcacerts -alias dcp-{{cert.name}} -file /opt/addcert/{{cert.name}} -keystore /opt/finalcacert/cacerts -storepass changeit
+          {%- endfor %}
+          {%- endif %}     
+      volumeMounts:
+        {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+        - name: finalcacert
+          mountPath: /opt/finalcacert
+        - name: addcert
+          mountPath: /opt/addcert
+          {%- endif %}
+  {%- endif %}
+  containers:
+    - name: driver
+      securityContext:
+        {%- if driverContainerScc is defined and driverContainerScc|length > 0 %}
+        {%- for scc in driverContainerScc %}
+        {{ scc }}
+        {%- endfor %}
+        {%- endif %}
+      volumeMounts:
+        {%- if kerberos %}
+        - name: keytabs
+          mountPath: /tmp/keytabs
+        {%- endif %}
+        {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+        - name:  finalcacert
+          mountPath: /opt/finalcacert
+        - name: addcert
+          mountPath: /opt/addcert
+        {%- endif %}
+        {%- if passwd %}
+        - name: passwd
+          mountPath: /etc/passwd
+          subPath: passwd
+        {%- endif %}
+EOF
+cat << EOF > /opt/spark/template/executor.yaml
+apiVersion: v1
+kind: Pod
+{%- if yscheduler %}
+metadata:
+  annotations:
+    yunikorn.apache.org/task-group-name: "spark-executor-{{ name }}-{{ randomstring }}"
+{%- endif %}
+spec:
+  volumes:
+  {%- if passwd %}
+    - name: passwd
+      configMap:
+        name: dcp-passwd-{{ name }}-cm
+  {%- endif %}
+  {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+    - name: finalcacert
+      emptyDir: {}
+    - name: addcert
+      configMap:
+        name: dcp-addcert-{{ name }}-cm
+  {%- endif %}
+  {%- if kerberos %}        
+    - name: keytabs
+      configMap:
+        name: dcp-keytab-{{ name }}-cm
+  {%- endif %}
+  {%- if dnsconfig %}
+  dnsConfig:
+{{ dnsconfig|indent(12, True)}}
+  {%- endif %}
+  {%- if hostaliases %}
+  hostAliases:
+    {{ hostaliases|indent(4)}}
+  {%- endif %}
+  securityContext:
+    {%- if executorPodScc is defined and executorPodScc|length > 0 %}
+    {%- for scc in executorPodScc %}
+    {{ scc }}
+    {%- endfor %}
+    {%- endif %}
+  
+  {%- if enablesparkinitcontainer %}
+  initContainers:
+    - name: init-executor
+      image: {{ sparkinitimage }}
+      imagePullPolicy: "IfNotPresent"
+      command:
+        - sh
+        - -c
+        - |
+          {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+          cp {{ cacert }} /opt/finalcacert/cacerts
+          chmod 777 /opt/finalcacert/cacerts
+          {%- for cert in additionalCertificate %}
+          #keytool -v -list -keystore /opt/finalcacert/cacerts -storepass changeit | grep dcp-{{cert.name}}
+          keytool -import -noprompt -trustcacerts -alias dcp-{{cert.name}} -file /opt/addcert/{{cert.name}} -keystore /opt/finalcacert/cacerts -storepass changeit
+          {%- endfor %}
+          {%- endif %}                       
+      volumeMounts:
+        {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+        - name: finalcacert
+          mountPath: /opt/finalcacert
+        - name: addcert
+          mountPath: /opt/addcert
+        {%- endif %}
+  {%- endif %}
+  containers:
+    - name: executor
+      securityContext:
+        {%- if executorContainerScc is defined and executorContainerScc|length > 0 %}
+        {%- for scc in executorContainerScc %}
+        {{ scc }}
+        {%- endfor %}
+        {%- endif %}
+      volumeMounts:
+        {%- if kerberos %}
+        - name: keytabs
+          mountPath: /tmp/keytabs
+        {%- endif %}
+        {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+        - name:  finalcacert
+          mountPath: /opt/finalcacert
+        - name: addcert
+          mountPath: /opt/addcert
+        {%- endif %}
+        {%- if passwd %}
+        - name: passwd
+          mountPath: /etc/passwd
+          subPath: passwd
+        {%- endif %}
+EOF
+    """],
+)
+

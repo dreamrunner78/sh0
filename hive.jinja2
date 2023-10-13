@@ -1,0 +1,18 @@
+connector.name=hive
+hive.metastore.uri={{ hms }}
+hive.config.resources={{ hiveconfiglocation }}
+
+{%- if enablekerberos %}
+hive.metastore.authentication.type=KERBEROS
+hive.metastore.service.principal={{ serviceprincipal }}/_HOST@{{ kerberosrealm }}
+hive.metastore.client.principal={{ clientprincipal }}@{{ kerberosrealm }}
+hive.metastore.client.keytab={{ keytablocation }}
+
+hive.hdfs.authentication.type=KERBEROS
+hive.hdfs.presto.principal={{ clientprincipal }}@{{ kerberosrealm }}
+hive.hdfs.presto.keytab={{ keytablocation }}
+{%- endif %}
+
+hive.metastore-refresh-interval=1s
+
+{{ extrasconfiguration }}

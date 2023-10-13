@@ -1,0 +1,510 @@
+nameOverride: "{{ nameOverride }}"
+fullnameOverride: "{{ fullnameOverride }}"
+namespaceOverride: "{{ namespace }}"
+architecture: {{ architecture }}
+schedulerName: "{{ kubeschedulername }}"
+enablepasswd: {{ enablepasswd }}
+
+
+clusterDomain: {{ clusterDomain }}
+
+storageClassName: {{ storageClassName }}
+
+replicaCount: {{ replicaCount }}
+
+global:
+  {%- if imagePullSecrets is defined and imagePullSecrets|length > 0 %}
+  imagePullSecrets:
+  {%- for secret in imagePullSecrets %}
+    - {{ secret }}
+  {%- endfor %}
+  {%- else %}
+  imagePullSecrets: []
+  {%- endif %}
+
+image:
+  registry: {{ registry }}
+  repository: {{ repository}}
+  tag: {{ tag }}
+  pullPolicy: {{ pullpolicy }}
+
+
+{%- if commonLabels is defined and commonLabels|length > 0 %}
+commonLabels:
+{%- for commonLabel in commonLabels %}
+  {{ commonLabel.name }}: {{ commonLabel.value }}
+{%- endfor %}
+{%- else %}
+commonLabels: {}
+{%- endif %}
+
+{%- if commonAnnotations is defined and commonAnnotations|length > 0 %}
+commonAnnotations:
+{%- for commonAnnotation in commonAnnotations %}
+  {{ commonAnnotation.name }}: {{ commonAnnotation.value }}
+{%- endfor %}
+{%- else %}
+commonAnnotations: {}
+{%- endif %}
+
+{%- if podLabels is defined and podLabels|length > 0 %}
+podLabels:
+{%- for podLabel in podLabels %}
+  {{ podLabel.name }}: {{ podLabel.value }}
+{%- endfor %}
+{%- else %}
+podLabels: {}
+{%- endif %}
+
+{%- if podAnnotations is defined and podAnnotations|length > 0 %}
+podAnnotations:
+{%- for podAnnotation in podAnnotations %}
+  {{ podAnnotation.name }}: {{ podAnnotation.value }}
+{%- endfor %}
+{%- else %}
+podAnnotations: {}
+{%- endif %}
+
+
+{%- if securityContext is defined and securityContext|length > 0 %}
+securityContext:
+{%- for item in securityContext %}
+  {{ item.name }}: {{ item.value }}
+{%- endfor %}
+{%- else %}
+securityContext: {}
+{%- endif %}
+
+containerSecurityContext:
+  enabled: true
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: {{runasuser}}
+  allowPrivilegeEscalation: false
+  seccompProfile:
+    type: RuntimeDefault
+    #localhostProfile: 
+  capabilities:
+    drop: ["ALL"]    
+
+podSecurityContext:
+  enabled: true
+  runAsNonRoot: true
+  runAsUser: {{runasuser}}
+  #runAsGroup: {{runasuser}}
+  fsGroup: {{runasuser}}
+
+{%- if hostAliases is defined and hostAliases|length > 0 %}
+hostAliases:
+{{ hostAliases|indent(2, True) }}
+{%- else %}
+hostAliases: []
+{%- endif %}
+
+{%- if dnsConfig is defined and dnsConfig|length > 0 %}
+dnsConfig:
+{{ dnsConfig|indent(2, True) }}
+{%- else %}
+dnsConfig: []
+{%- endif %}
+
+{%- if nodeSelector is defined and nodeSelector|length > 0 %}
+nodeSelector:
+{%- for item in nodeSelector %}
+  {{ item.name }}: {{ item.value }}
+{%- endfor %}
+{%- else %}
+nodeSelector: {}
+{%- endif %}
+
+tolerations: []
+
+topologySpreadConstraints: []
+
+podManagementPolicy: Parallel
+
+priorityClassName: ""
+
+{%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+additionalCertificate:
+{%- for certificate in additionalCertificate %}
+  {{ certificate.name }}: |-
+{{ certificate.content|indent(4, True) }} 
+{%- endfor %}
+{%- else %}
+additionalCertificate: {}
+{%- endif %}
+{%- endif %}
+
+serviceAccount:
+  enabled: false
+  create: false
+  annotations: {}
+  name: "dcp-hms-{{ name }}"
+
+service:
+  type: ClusterIP
+  port: {{ hmsport }}
+
+resources:
+  requests:
+    memory: {{ requestmem }}{{ unitrequestmem }}
+    cpu: {{ requestcpu }}{% if unitrequestcpu == "m" %}m{% endif %}
+  limits: 
+    memory: {{ limitmem }}{{ unitlimitmem }}
+    cpu: {{ limitcpu }}{% if unitlimitcpu == "m" %}m{% endif %}
+
+initContainer:
+  resources: 
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 500Mi    
+
+persistence:
+  enabled: {{ enablestorage }}
+  datasize: {{ datasize }}
+  path: /tmp/hive
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+{%- if affinity is defined and affinity|length > 0 %}
+affinity:
+{%- for item in affinity %}
+  {{ item.name }}: {{ item.value }}
+{%- endfor %}
+{%- else %}
+affinity: {} 
+{%- endif %}
+
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate: {}
+
+# custom configuration
+db:
+  image: {{pgsregistry}}/{{ pgsrepository }}:{{ pgstag }}
+  pullPolicy: {{ pullpolicy }}  
+  host: {{ dbhost }}
+  port: {{ portpgs }}
+  name: {{ dbname }}
+  user: {{ dbuser }}
+  password: {{ dbpassword }}
+  rootuser: {{ dbrootuser }}
+  rootpassword: {{ dbrootpassword }}
+
+conf:
+{%- if metastoreSite is defined and metastoreSite|length > 0 %}
+  metastoreSite:
+{%- for conf in metastoreSite %}
+    {{ conf.name }}: {{ conf.value }}
+{%- endfor %}
+{%- else %}
+  metastoreSite: {}
+{%- endif %}
+
+checkdbready:
+    image: {{ initimage }}
+    waittime: 5
+    command: until nslookup {{ dbhost }}; do echo waiting for database; sleep 5; done;
+
+metastore:
+  initjob: {{ initjob }}
+
+
+customLivenessProbe: {}
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 15
+  failureThreshold: 30
+  successThreshold: 1
+
+customReadinessProbe: {}
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 15
+  failureThreshold: 30
+  successThreshold: 1
+
+customStartupProbe: {}
+startupProbe:
+  enabled: false
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 1
+  failureThreshold: 15
+  successThreshold: 1
+
+# For database
+postgresql:
+  enabled: true
+  nameOverride: "{{nameOverride}}pgs"
+  fullnameOverride: ""
+  architecture: {{ architecture }}
+
+  {%- if podLabels is defined and podLabels|length > 0 %}
+  commonLabels:
+  {%- for podLabel in podLabels %}
+    {{ podLabel.name }}: {{ podLabel.value }}
+  {%- endfor %}
+  {%- else %}
+  commonLabels: {}
+  {%- endif %}
+
+  {%- if commonAnnotations is defined and commonAnnotations|length > 0 %}
+  commonAnnotations:
+  {%- for commonAnnotation in commonAnnotations %}
+    {{ commonAnnotation.name }}: {{ commonAnnotation.value }}
+  {%- endfor %}
+  {%- else %}
+  commonAnnotations: {}
+  {%- endif %}
+
+  {%- if podAnnotations is defined and podAnnotations|length > 0 %}
+  podAnnotations:
+  {%- for podAnnotation in podAnnotations %}
+      {{ podAnnotation.name }}: "{{ podAnnotation.value }}"
+  {%- endfor %}
+  {%- else %}
+  podAnnotations: {}
+  {%- endif %}  
+
+  volumePermissions:
+    enabled: false
+    securityContext:
+      runAsUser: "auto"
+
+  shmVolume:
+    chmod:
+      enabled: false  
+  
+  image:
+    registry: {{ pgsregistry }}
+    repository: {{ pgsrepository }}
+    tag: {{ pgstag }}
+    digest: ""
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+
+  containerPorts:
+    postgresql: {{portpgs}}
+
+  global:
+    {%- if imagePullSecrets is defined and imagePullSecrets|length > 0 %}
+    imagePullSecrets:
+    {%- for imagePullSecret in imagePullSecrets %}
+      - {{ imagePullSecret }}
+    {%- endfor %}
+    {%- else %}
+    imagePullSecrets: []
+    {%- endif %}  
+    storageClass: {{ storageClassName }}
+    postgresql:
+      auth:
+        postgresPassword: "{{ dbrootpassword }}"
+        username: "{{ dbuser }}"
+        password: "{{ dbpassword }}"
+        database: "{{ dbname }}"
+
+  primary:
+    schedulerName: "{{ kubeschedulername }}"
+
+    podSecurityContext:
+      enabled: true
+      runAsNonRoot: true
+      runAsUser: {{ runasuser }}
+      fsGroup: {{ runasuser }}
+
+    containerSecurityContext:
+      enabled: true
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: {{runasuser}}
+      allowPrivilegeEscalation: false
+      seccompProfile:
+        type: RuntimeDefault
+        #localhostProfile: 
+      capabilities:
+        drop: ["ALL"]
+
+    extraVolumeMounts:
+      # if readonly filesystem
+      - name: dcp-conf
+        mountPath: /opt/bitnami
+      {%- if not dbpersist %}
+      # If persistence is disabled
+      - name: dcp-data
+        mountPath: /opt/dcp
+      {%- endif %}
+      - name: dcp-tmp
+        mountPath: /tmp
+    extraVolumes:
+      # if readonly filesystem
+      - name: dcp-conf
+        emptyDir: {}
+      {%- if not dbpersist %}
+      # If persistence is disabled
+      - name: dcp-data
+        emptyDir: {}
+      {%- endif %}
+      - name: dcp-tmp
+        emptyDir: {}
+
+    command:
+      - bash
+      - -c
+      - |
+        cp -R /opt/dsp/postgresql /opt/bitnami
+        cp -R /opt/dsp/licenses /opt/bitnami
+        cp -R /opt/dsp/scripts /opt/bitnami
+        cp -R /opt/dsp/common /opt/bitnami
+
+        chmod 777 "/opt/bitnami/*"
+        chmod -R 777 "/opt/bitnami/*"
+
+        /opt/bitnami/scripts/postgresql/postunpack.sh
+        /opt/bitnami/scripts/locales/add-extra-locales.sh
+
+        export APP_VERSION="15.4.0"
+        export BITNAMI_APP_NAME="postgresql"
+        export LANG="en_US.UTF-8"
+        export LANGUAGE="en_US:en"
+        export NSS_WRAPPER_LIB="/opt/bitnami/common/lib/libnss_wrapper.so"
+        export PATH="/opt/bitnami/postgresql/bin:$PATH"
+
+        # if persistence is disabled
+        {%- if not dbpersist %}
+        mkdir /bitnami/postgresql/data
+        {%- endif %}
+
+        /opt/bitnami/scripts/postgresql/entrypoint.sh /opt/bitnami/scripts/postgresql/run.sh
+    
+    initdb:
+      user: {{ dbuser }}
+      password: {{ dbpassword }}
+      scriptsConfigMap: {{ name }}-{{ nameOverride }}-cm-initdb
+
+    persistence:
+      enabled: {{ dbpersist }}
+      storageClass: {{ storageClassName }}
+      size: {{ dbsize }}Mi
+      labels: 
+        {%- if podLabels is defined and podLabels|length > 0 %}
+        {%- for podLabel in podLabels %}
+        {{ podLabel.name }}: "{{ podLabel.value }}"
+        {%- endfor %}
+        {%- else %}
+        release: {{ nameOverride }}
+        {%- endif %}
+    resources:
+      limits: 
+        memory: {{ limitmempgs }}{{unitlimitmempgs}}
+        cpu: {{ limitcpupgs }}{% if unitlimitcpupgs == "m" %}m{% endif %}
+      requests:
+        memory: {{ requestmempgs }}{{unitrequestmempgs}}
+        cpu: {{ requestcpupgs }}{% if unitrequestcpupgs == "m" %}m{% endif %}
+
+  readReplicas:
+    name: read
+    replicaCount: {{ readreplicas }}
+    schedulerName: "{{ kubeschedulername }}"
+    podSecurityContext:
+      enabled: true
+      runAsNonRoot: true
+      runAsUser: {{ runasuser }}
+      fsGroup: {{ runasuser }}
+
+    containerSecurityContext:
+      enabled: true
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: {{runasuser}}
+      allowPrivilegeEscalation: false
+      seccompProfile:
+        type: RuntimeDefault
+        #localhostProfile: 
+      capabilities:
+        drop: ["ALL"]
+
+    extraVolumeMounts:
+      # if readonly filesystem
+      - name: dcp-conf
+        mountPath: /opt/bitnami
+      {%- if not dbpersist %}
+      # If persistence is disabled
+      - name: dcp-data
+        mountPath: /opt/dcp
+      {%- endif %}
+      - name: dcp-tmp
+        mountPath: /tmp
+    extraVolumes:
+      # if readonly filesystem
+      - name: dcp-conf
+        emptyDir: {}
+      {%- if not dbpersist %}
+      # If persistence is disabled
+      - name: dcp-data
+        emptyDir: {}
+      {%- endif %}
+      - name: dcp-tmp
+        emptyDir: {}
+
+    command:
+      - bash
+      - -c
+      - |
+        cp -R /opt/dsp/postgresql /opt/bitnami
+        cp -R /opt/dsp/licenses /opt/bitnami
+        cp -R /opt/dsp/scripts /opt/bitnami
+        cp -R /opt/dsp/common /opt/bitnami
+
+        chmod 777 "/opt/bitnami/*"
+        chmod -R 777 "/opt/bitnami/*"
+
+        /opt/bitnami/scripts/postgresql/postunpack.sh
+        /opt/bitnami/scripts/locales/add-extra-locales.sh
+
+        export APP_VERSION="15.4.0"
+        export BITNAMI_APP_NAME="postgresql"
+        export LANG="en_US.UTF-8"
+        export LANGUAGE="en_US:en"
+        export NSS_WRAPPER_LIB="/opt/bitnami/common/lib/libnss_wrapper.so"
+        export PATH="/opt/bitnami/postgresql/bin:$PATH"
+
+        # if persistence is disabled
+        {%- if not dbpersist %}
+        mkdir /bitnami/postgresql/data
+        {%- endif %}
+
+        /opt/bitnami/scripts/postgresql/entrypoint.sh /opt/bitnami/scripts/postgresql/run.sh
+
+    persistence:
+      enabled: {{ dbpersist }}
+      storageClass: {{ storageClassName }}
+      size: {{ dbsize }}Mi
+      labels: 
+        {%- if podLabels is defined and podLabels|length > 0 %}
+        {%- for podLabel in podLabels %}
+        {{ podLabel.name }}: "{{ podLabel.value }}"
+        {%- endfor %}
+        {%- else %}
+        release: {{ nameOverride }}
+        {%- endif %}
+    resources:
+      limits: 
+        memory: {{ limitmempgs }}{{unitlimitmempgs}}
+        cpu: {{ limitcpupgs }}{% if unitlimitcpupgs == "m" %}m{% endif %}
+      requests:
+        memory: {{ requestmempgs }}{{unitrequestmempgs}}
+        cpu: {{ requestcpupgs }}{% if unitrequestcpupgs == "m" %}m{% endif %}    

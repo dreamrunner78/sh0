@@ -1,0 +1,38 @@
+{{name}} = KubernetesPodOperator(namespace='{{namespace}}',
+image="{{imagename}}",
+cmds=[
+"sh",
+"-c",
+'{{ commandline }} {%- if classtype %} --class {{ sparkmainapplication }}{%- endif %} {%- if sparkextrajars is defined and sparkextrajars|length > 0 %} --jars {{ sparkextrajars }} {%- endif %} {%- if sparktype == 'Python' %}{%- if sparkextrapyListStr is defined and sparkextrapyListStr|length > 0 %}--py-files {{ sparkextrapyListStr }} {%- endif %}{%- endif %} {%- if sparkextrafiles is defined and sparkextrafiles|length > 0 %} --files {{ sparkextrafiles }}{%- endif %} {{ sparkmainjar }} {%- if sparkargs is defined and sparkargs|length > 0 %} {{ sparkargs | join(' ') }} {%- endif %}'
+],
+name="dcp-{{ name }}-launcher-{{ randomstring }}",
+task_id="dcp-spark-task-{{namerandomstring}}",
+env_vars={
+"SPARK_WORKER_DIR": "/opt/spark/work-dir"
+},
+init_containers=[init_container_{{randomstring}}],
+volume_mounts=[vm_{{randomstring}}, volume_mount_{{randomstring}}],
+volumes=[v_tmp_{{randomstring}}, volume_{{randomstring}}],
+service_account_name='{{servicecaccount}}',
+{%- if labels is defined and labels|length > 0 %}
+labels={
+{%- for label in labels %}
+"{{ label.name }}":"{{ label.value }}"{% if not loop.last %},{% endif %}
+{%- endfor %}
+},
+{%- endif %}
+security_context={
+"runAsNonRoot": True,
+"runAsUser": {{runasuser}},
+"allowPrivilegeEscalation": False,
+"seccompProfile":{
+    "type": "RuntimeDefault"
+},
+"capabilities": {
+    'drop': '["ALL"]'
+}
+},
+container_resources=compute_resources_{{randomstring}},
+get_logs=True,
+dag=dag
+)

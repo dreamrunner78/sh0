@@ -1,0 +1,31 @@
+from airflow import DAG
+from datetime import datetime, timedelta
+from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.providers.trino.operators.trino import TrinoOperator
+from kubernetes.client import models as k8s
+
+
+{%- for header in headers %}
+{{ header }}
+{%- endfor %}
+
+default_args = {
+    'owner': '{{owner}}',
+    'depends_on_past': False,
+    'start_date': datetime.utcnow(), 
+    'retries': {{ retries }},
+    'retry_delay': timedelta({{ retry_delay_unit }}={{ retry_delay }}),
+    'schedule_interval': {%- if (scheduleinterval != "None") %}'{{scheduleinterval}}'{%- else %}{{scheduleinterval}}{%- endif %}
+}
+dag = DAG('{{name}}', 
+default_args=default_args, 
+catchup=False)
+
+{%- for task in tasks %}
+{{ task }}
+{%- endfor %}
+
+{%- for edge in edges %}
+{{edge.source}}.set_downstream({{edge.target}})
+{%- endfor %}

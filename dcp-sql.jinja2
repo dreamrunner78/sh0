@@ -1,0 +1,8 @@
+{{name}} = TrinoOperator(
+    task_id='dcp-sql-{{taskid}}',
+    trino_conn_id='{{connid}}',
+    sql="""
+{{query}}
+    """,    
+    dag=dag  
+)

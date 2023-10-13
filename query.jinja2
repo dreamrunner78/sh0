@@ -1,0 +1,675 @@
+kerberosconf: |
+{{ kerberosconf|indent(2, True) }}
+
+
+{%- if textdatalist is defined and textdatalist|length > 0 %}
+textdatalist:
+{%- for textdata in textdatalist %}
+  {{ textdata.name }}: |
+{{ textdata.value|indent(4, True) }}
+{%- endfor %}
+{%- else %}
+textdatalist: {}
+{%- endif %}
+
+
+{%- if binarydatalist is defined and binarydatalist|length > 0 %}
+binarydatalist:
+{%- for binarydata in binarydatalist %}
+  {{ binarydata.name }}: |
+{{ binarydata.value|indent(4, True) }}
+{%- endfor %}
+{%- else %}
+binarydatalist: {}
+{%- endif %}
+
+nameOverride: "{{ nameOverride }}"
+fullnameOverride: "{{ fullnameOverride }}"
+namespaceOverride: "{{ namespace }}"
+namespace: "{{ namespace }}"
+
+querytype: "{{ querytype }}"
+etcdir: "{{ etcdir }}"
+entrepriseedition: {{ entrepriseedition }}
+
+enableinsightpersist: {{ enableinsightpersist }}
+checkdbready:
+  image: {{ initimage }}
+  waittime: 5
+  command: until nslookup {{ dbhost }}; do echo waiting for database; sleep 5; done;
+
+clusterDomain: {{ clusterDomain }}
+
+storageClassName: {{ storageClassName }}
+
+enablescheduler: {{ enablescheduler }}
+schedulerName: "{{ kubeschedulername }}"
+yqueue: {{ ycompletequeue }}
+
+global:
+  {%- if imagePullSecrets is defined and imagePullSecrets|length > 0 %}
+  imagePullSecrets:
+  {%- for secret in imagePullSecrets %}
+    - {{ secret }}
+  {%- endfor %}
+  {%- else %}
+  imagePullSecrets: []
+  {%- endif %}
+
+image:
+  registry: "{{ registry }}"
+  repository: "{{ repository }}"
+  pullPolicy: IfNotPresent
+  tag: "{{ tag }}"
+  pullSecrets: []
+
+{%- if commonLabels is defined and commonLabels|length > 0 %}
+commonLabels:
+{%- for commonLabel in commonLabels %}
+  {{ commonLabel.name }}: "{{ commonLabel.value }}"
+{%- endfor %}
+{%- else %}
+commonLabels: {}
+{%- endif %}
+
+{%- if commonAnnotations is defined and commonAnnotations|length > 0 %}
+commonAnnotations:
+{%- for commonAnnotation in commonAnnotations %}
+  {{ commonAnnotation.name }}: "{{ commonAnnotation.value }}"
+{%- endfor %}
+{%- else %}
+commonAnnotations: {}
+{%- endif %}
+
+{%- if podLabels is defined and podLabels|length > 0 %}
+podLabels:
+{%- for podLabel in podLabels %}
+  {{ podLabel.name }}: "{{ podLabel.value }}"
+{%- endfor %}
+{%- else %}
+podLabels: {}
+{%- endif %}
+
+{%- if podAnnotations is defined and podAnnotations|length > 0 %}
+podAnnotations:
+{%- for podAnnotation in podAnnotations %}
+  {{ podAnnotation.name }}: "{{ podAnnotation.value }}"
+{%- endfor %}
+{%- else %}
+podAnnotations: {}
+{%- endif %}
+
+
+{%- if securityContext is defined and securityContext|length > 0 %}
+securityContext:
+{%- for item in securityContext %}
+  {{ item.name }}: {{ item.value }}
+{%- endfor %}
+{%- else %}
+securityContext: {}
+{%- endif %}
+
+
+{%- if hostAliases is defined and hostAliases|length > 0 %}
+hostAliases:
+{{ hostAliases|indent(2, True) }}
+{%- else %}
+hostAliases: []
+{%- endif %}
+
+{%- if dnsConfig is defined and dnsConfig|length > 0 %}
+dnsConfig:
+{{ dnsConfig|indent(2, True) }}
+{%- else %}
+dnsConfig: []
+{%- endif %}
+
+
+podSecurityContext: 
+  enabled: true
+  runAsNonRoot: true
+  runAsUser: {{ runasuser }}
+  fsGroup: {{ runasuser }}
+  
+containerSecurityContext:
+  enabled: true
+  readOnlyRootFilesystem: true
+  runAsUser: {{ runasuser }}
+  allowPrivilegeEscalation: false
+  seccompProfile:
+    type: RuntimeDefault
+  capabilities:
+    drop: ["ALL"]
+
+{%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+additionalCertificate:
+{%- for certificate in additionalCertificate %}
+  {{ certificate.name }}: |-
+{{ certificate.content|indent(4, True) }} 
+{%- endfor %}
+{%- else %}
+additionalCertificate: {}
+{%- endif %}
+{%- endif %}
+
+serviceAccount:
+  enabled: false
+  create: false
+  annotations: {}
+  name: "dcp-sql-{{ name }}"
+
+scaler:
+  enabled: {{ enableautoscale }}
+  instance: {{ scalerinstance }}
+  name: prometheus-trino-so-{{ name }}
+  job: "trino-prom-job"
+  pollingInterval: 5
+  cooldownPeriod: 30
+
+  minReplicaCount: {{ workercount }}
+  maxReplicaCount: {{ maxReplicaCount }}
+
+  restoreToOriginalReplicaCount : true
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 30
+      periodSeconds: 30
+      type: Pods
+      value: 1
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      periodSeconds: 10
+      type: Pods
+      value: 2
+  
+  runningqueries: "{{ runningqueries }}"
+  queuedqueries: "{{ queuedqueries }}"
+  queuedtaskcount: "{{ queuedtaskcount }}"
+  heapmemcommited: "{{ heapmemcommited }}"
+  threadcount: "{{ threadcount }}"
+
+ldap:
+  enabled: {{ enableldap }}
+    {%- if ldapconfigurationList is defined and ldapconfigurationList|length > 0 %}
+  configs: |-
+    {%- for ldapconfiguration in ldapconfigurationList %}
+    {{ ldapconfiguration }}
+    {%- endfor %}
+    {%- else %}
+    {%- endif %}
+  certificate: |-
+{{ ldapcertificate|indent(4, True) }}
+
+
+volumes:
+  data: /data/trino
+  solrspool: /audit/solr/spool
+  tmp: /tmp
+  warehouse: /user/hive/warehouse  
+
+service:
+  type: ClusterIP
+  ports:
+    http: {{ queryplainport }}
+    https: {{ engineport }}
+  nodePorts:
+    http: ""
+    https: ""
+  clusterIP: ""
+  annotations: {}
+
+certmanager:
+  enabled: {{ certmanager }}
+  issuer: ca-issuer
+  duration: 8760h
+  renewBefore: 2208h
+  dnsNames:
+    - "*.svc.cluster.local" 
+    - "*.*.*.svc.cluster.local"
+    - "*.*.svc.cluster.local"
+    - "*.dcp-technologies.com"
+    - "*.test"
+    - "localhost"
+    - "*.apps.sandbox-m2.ll9k.p1.openshiftapps.com"
+
+security:
+  ssl:
+    enabled: {{ securityenabled }}
+    autoGenerated: true
+    image: {{ initimage }}
+    keystorepath: {{ etcdir }}/certs/trino-keystore.jks
+    keystorePassword: {{ keystorepassword }}
+    truststorepath: {{ etcdir }}/certs/trino-truststore.jks
+    truststorePassword: {{ truststorepassword }}
+    resources: 
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 500Mi
+
+route:
+  enabled: false
+  {%- if routeannotations is defined and routeannotations|length > 0 %}
+  annotations:
+  {%- for routeannotation in routeannotations %}
+    {{ routeannotations.name }}: "{{ routeannotations.value }}"
+  {%- endfor %}
+  {%- else %}
+  annotations: {}
+  {%- endif %}
+  termination: passthrough
+
+
+ingress:
+  enabled: {{ enableingress }}
+  {%- if ingressnumber %}
+  {%- if securityenabled %}
+  ingresstype: {{ engineport }}
+  {%- else %}
+  ingresstype: {{ queryplainport }}
+  {%- endif %}
+  {%- else %}
+  ingresstype: http
+  {%- endif %}
+  pathType: ImplementationSpecific
+  apiVersion: ""
+  hostname: {{ ingresshostname }}
+  ingressClassName: ""
+  path: "{{ ingresspath }}"
+  className: ""
+  {%- if nginxannotation is defined %}
+  annotations:
+  {%- if nginxannotation is defined and nginxannotation|length > 0 %}
+{{ nginxannotation|indent(4, True) }}
+  {%- endif %}
+    {%- if enableingresstls %}
+    {%- if isopenshift %}
+    route.openshift.io/termination: passthrough
+    {%- endif %}    
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    {%- endif %}
+  {%- else %}
+  annotations: {}
+  {%- endif %}
+  tls: {{ enableingresstls }}
+  selfSigned: {{ enableingresstls }}
+  extraHosts: []
+  extraPaths: []
+  {%- if certmanager %}
+  extraTls:
+    - hosts:
+         - {{ ingresshostname }}
+      secretName: {{ name }}-{{ nameOverride }}-tls
+  {%- else %}
+  extraTls: []
+  {%- endif %}
+  secrets: []
+  extraRules: []
+
+resources:
+  limits: 
+    memory: {{ limitmem }}
+    cpu: {{ limitcpu }}
+  requests:
+    memory: {{ requestmem }}
+    cpu: {{ requestcpu }}
+
+initContainer:
+  resources: 
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 500Mi
+
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+{%- if nodeSelector is defined and nodeSelector|length > 0 %}
+nodeSelector:
+{%- for item in nodeSelector %}
+  {{ item.name }}: {{ item.value }}
+{%- endfor %}
+{%- else %}
+nodeSelector: {}
+{%- endif %}
+
+tolerations: []
+
+topologySpreadConstraints: []
+
+podManagementPolicy: Parallel
+
+{%- if affinity is defined and affinity|length > 0 %}
+affinity:
+{%- for item in affinity %}
+  {{ item.name }}: {{ item.value }}
+{%- endfor %}
+{%- else %}
+affinity: {} 
+{%- endif %}
+
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate: {}
+
+trino:
+  initScriptsCM: false
+
+server:
+  workers: {{ workercount }}
+  enablestorage: {{ enablestorage }}
+  enabletmpstorage: {{ enabletmpstorage }}
+  datasize: {{ datasize }}
+  tmpsize: {{ tmpsize }}
+  spill:
+    enablespill: {{ enablespill }}
+    spillpernode: {{ spillpernode }}
+    maxspillpernode: {{ maxspillpernode }}
+    spillsize: {{ spillsize }}
+    spillpath: /spill
+  provider:
+    enabled: {{ enablegroupprovider }}
+    type: "{{ groupprovider }}"
+    
+    groups:
+      {%- if providerLines is defined and providerLines|length > 0 %}
+      {%- for providerLine in providerLines %}
+      - {{ providerLine }}
+      {%- endfor %}
+      {%- endif %}
+    {%- if ldapgroupproviderList is defined and ldapgroupproviderList|length > 0 %}
+    ldap: |-
+    {%- for ldapgroupprovider in ldapgroupproviderList %}
+      {{ ldapgroupprovider }}
+    {%- endfor %}
+    {%- endif %}      
+
+  jmx:
+    port: 9080
+    localonly: false
+    authenticate: false
+    ssl: false
+  node:
+    environment: {{ nameOverride }}
+    dataDir: /data/trino
+    pluginDir: {{ plugindir }}
+  log:
+    trino:
+      level: {{ loglevel }}
+  config:
+    path: {{ etcdir   }}
+    authenticationType: "{{ strauthenticationtype }}"
+    query:
+      maxMemory: "{{ maxmemory }}GB"
+      maxMemoryPerNode: "{{ maxmemorypernode }}GB"
+    memory:
+      heapHeadroomPerNode: "{{ heapheadroompernode }}GB"
+    ranger:
+      enabled: {{ rangerenabled }}
+      RANGERADMIN_PASSWORD: "{{ rangeradminpassword }}"
+      XASECURE_POLICYMGR_CLIENTSSL_KEYSTORE_CREDENTIAL_FILE: {{ etcdir }}/certs/trino-keystore.jks
+      XASECURE_POLICYMGR_CLIENTSSL_TRUSTSTORE_CREDENTIAL_FILE: {{ etcdir }}/certs/trino-truststore.jks
+
+      XASECURE_AUDIT_IS_ENABLED: {{ auditenabled }}
+      XASECURE_AUDIT_SOLR_SOLR_URL: "http://{{ auditurl }}:{{ auditport }}/{{ auditname }}/ranger_audits"
+      XASECURE_AUDIT_DESTINATION_SOLR_URLS: "http://{{ auditurl }}:{{ auditport }}/{{ auditname }}/ranger_audits"
+      XASECURE_AUDIT_DESTINATION_SOLR_USER: {{ audituser }}
+      XASECURE_AUDIT_DESTINATION_SOLR_PASSWORD: {{ auditpassword }}
+      XASECURE_AUDIT_SOLR_SPOOL_DIR: /opt/trino/audit/solr/spool
+
+      RANGER_PLUGIN_TRINO_SERVICE_NAME: {{ rangerservicename }}
+      RANGER_PLUGIN_TRINO_POLICY_REST_URL: "http://{{ rangerurl }}:{{ rangerport }}"
+      RANGER_PLUGIN_TRINO_POLICY_REST_SSL_CONFIG_FILE: {{ etcdir }}/ranger-policymgr-ssl.xml
+      RANGER_PLUGIN_TRINO_POLICY_CACHE_DIR: {{ etcdir }}/ranger/policycache
+    
+    exchangemanager:
+      enabled: {{ exchangemanager }}
+      retrypolicy: {{ retrypolicy }}
+      name: filesystem
+      bucket: {{ exchangebucket }}
+      endpoint: {{ exchangeendpoint }}
+      accesskey: {{ exchangeaccesskey }}
+      secretkey: {{ exchangesecretkey }}
+      styleaccess: {{ exchangestyleaccess }}
+      region: {{ exchangeregion }}
+
+
+  starburstPlatformLicense: {{ querytype }}
+  license: |
+{%- if licenses_text is defined and licenses_text|length > 0 %}
+{%- for license in licenses_text %}
+{{ license|indent(4, True) }}
+{%- endfor %}
+{%- endif %}
+  usageMetrics:
+    enabled: {{ usagemetrics }}
+    usageClient:
+      initialDelay: "1m"
+      interval: "1m"
+  
+  additionalConfigProperties: {}
+
+  {%- if additionalJVMConfigList is defined and additionalJVMConfigList|length > 0 %}
+  additionalJVMConfig:
+  {%- for additionalJVMConfig in additionalJVMConfigList %}
+    - {{ additionalJVMConfig }}
+  {%- endfor %}
+  {%- else %}
+  additionalJVMConfig: {}
+  {%- endif %}
+
+  # ------------------------------------------------------------------------------
+  # Starburst Enterprise Smart Indexing and Caching - SIAC
+  # Dont work with non root image
+  # ------------------------------------------------------------------------------
+  siac:
+    enabled: false
+    # Additional percentage of container memory reduced from heap size assigned to Java, must be less than 100
+    additionalHeapSizePercentage: 15
+
+  exchangeManager:
+    name: "filesystem"
+    baseDir: "/opt/trino/trino-local-file-system-exchange-manager"
+  workerExtraConfig: ""
+  coordinatorExtraConfig: ""
+  #autoscaling:
+  #  enabled: false
+  #  maxReplicas: 5
+  #  targetCPUUtilizationPercentage: 50
+  sharedsecret: {{ sharedsecret }}
+
+additionalNodeProperties: {}
+
+initContainers: []
+
+worker:
+  jvm:
+    maxHeapSize: "{{ workermaxheapsize }}G"
+    gcMethod:
+      type: "UseG1GC"
+      g1:
+        heapRegionSize: "{{ workerheapregionsize }}M"
+
+  additionalJVMConfig: {}
+
+  additionalConfigProperties: {}
+
+  resources:
+    limits: 
+        memory: {{ workerlimitmem }}{{ workerunitlimitmem }}
+        cpu: {{  workerlimitcpu }}{% if workerunitlimitcpu == "m" %}m{% endif %}
+    requests:
+        memory: {{  workerrequestmem }}{{ workerunitrequestmem }}
+        cpu: {{  workerrequestcpu }}{% if workerunitrequestcpu == "m" %}m{% endif %}
+
+  persistence:
+    labels: 
+      node: "worker"
+      release: "{{ nameOverride }}"
+      uuid: "{{ randomString }}"
+
+  #livenessProbe: {}
+  #readinessProbe: {}
+
+
+coordinator:
+  jvm:
+    maxHeapSize: "{{ coordinatormaxheapsize }}G"
+    gcMethod:
+      type: "UseG1GC"
+      g1:
+        heapRegionSize: "{{ coordinatorheapregionsize }}M"
+
+  additionalJVMConfig: {}
+
+  additionalConfigProperties:
+    {%- if enableinsightpersist %}
+    - insights.jdbc.url=jdbc:postgresql://{{ dbservice }}:5432/{{dbname}}
+    - insights.jdbc.user={{ dbuser }}
+    - insights.jdbc.password={{ dbpassword }}
+    - insights.persistence-enabled=true
+    - insights.metrics-persistence-enabled=true
+    #- insights.authorized-users=.*
+    {%- endif %}
+
+  resources:
+    limits: 
+        memory: {{ coordinatorlimitmem }}{{ coordinatorunitlimitmem }}
+        cpu: {{  coordinatorlimitcpu }}{% if coordinatorunitlimitcpu == "m" %}m{% endif %}
+    requests:
+        memory: {{  coordinatorrequestmem }}{{ coordinatorunitrequestmem }}
+        cpu: {{  coordinatorrequestcpu }}{% if coordinatorunitrequestcpu == "m" %}m{% endif %}
+
+  persistence:
+    labels: 
+      node: "coordinator"
+      release: "{{ nameOverride }}"
+      uuid: "{{ randomString }}"
+
+  livenessProbe: {}
+    # initialDelaySeconds: 20
+    # periodSeconds: 10
+    # timeoutSeconds: 5
+    # failureThreshold: 6
+    # successThreshold: 1
+  readinessProbe: {}
+    # initialDelaySeconds: 20
+    # periodSeconds: 10
+    # timeoutSeconds: 5
+    # failureThreshold: 6
+    # successThreshold: 1
+
+{%- if catalogprops is defined and catalogprops|length > 0 %}
+additionalCatalogs:
+{%- for catalog in catalogprops %}
+  {{ catalog.name }}.properties: |-
+    {%- for content in catalog.contentList %}
+    {{ content }}
+    {%- endfor %}    
+{%- endfor %}
+{%- else %}
+additionalCatalogs: {}
+{%- endif %}
+{%- endif %}
+
+
+ca:
+  crt: {{ cacrt }}
+  key: {{ cakey }}
+tls:
+  crt: {{ tlscrt }}
+  key: {{ tlskey }}
+
+{%- if enableinsightpersist %}
+# For database
+postgresql:
+  nameOverride: "{{nameOverride}}pgs"
+  fullnameOverride: ""
+  {%- if commonLabels is defined and commonLabels|length > 0 %}
+  commonLabels:
+  {%- for commonLabel in commonLabels %}
+    {{ commonLabel.name }}: "{{ commonLabel.value }}"
+  {%- endfor %}
+  {%- else %}
+  commonLabels: {}
+  {%- endif %}
+
+  {%- if commonAnnotations is defined and commonAnnotations|length > 0 %}
+  commonAnnotations:
+  {%- for commonAnnotation in commonAnnotations %}
+    {{ commonAnnotation.name }}: "{{ commonAnnotation.value }}"
+  {%- endfor %}
+  {%- else %}
+  commonAnnotations: {}
+  {%- endif %}
+
+  volumePermissions:
+    enabled: false
+    securityContext:
+      runAsUser: "auto"
+
+  shmVolume:
+    chmod:
+      enabled: false    
+  
+  image:
+    registry: "{{ imagepgsrepository }}"
+    repository: "{{ imagepgsname }}"
+    tag: "{{ imagepgstag }}"
+    digest: ""
+    pullPolicy: "IfNotPresent"
+    pullSecrets: []
+
+  containerPorts:
+    postgresql: 5432
+
+  global:
+    storageClass: "{{ storageClassName }}"
+    postgresql:
+      auth:
+        postgresPassword: "{{ dbrootpassword }}"
+        username: "{{ dbuser }}"
+        password: "{{ dbpassword }}"
+        database: "{{ dbname }}"
+
+  primary:
+
+    podSecurityContext:
+      enabled: true
+      fsGroup: {{ runasuser }}
+
+    containerSecurityContext:
+      enabled: true
+      runAsNonRoot: true
+      runAsUser: {{ runasuser }}
+      allowPrivilegeEscalation: false
+      seccompProfile:
+        type: RuntimeDefault
+        #localhostProfile: 
+      capabilities:
+        drop: ["ALL"]
+
+    persistence:
+      enabled: true
+      storageClass: {{ storageClassName }}
+      labels: 
+        release: "{{ nameOverride }}"
+        uuid: "{{ randomString }}"
+    resources:
+      requests:
+        cpu: "{{ requestcpupgs }}{{ unitrequestcpupgs }}"
+        memory: "{{ requestmempgs }}{{ unitrequestmempgs }}"
+      limits: 
+        cpu: "{{ limitcpupgs }}{{ unitlimitcpupgs }}"
+        memory: "{{ limitmempgs }}{{ unitlimitmempgs }}"
+{%- endif %}

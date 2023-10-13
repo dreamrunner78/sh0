@@ -1,0 +1,595 @@
+{%- if not useconfigmap %}
+{%- if hadoop %}
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: dcp-hadoop-{{ name }}-cm
+data:
+  core-site.xml: |
+{{ coresite|indent(4, True)}}
+  hdfs-site.xml: |
+{{ hdfssite|indent(4, True)}}
+{%- if hivessite %}  
+  hive-site.xml: |
+{{ hdfssite|indent(4, True)}}
+{%- endif %}
+---
+{%- endif %}
+
+
+{%- if kerberos %}
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: dcp-kerberos-{{ name }}-cm
+data:
+  krb5.conf: | 
+{{ kerberos|indent(4, True)}}
+---
+{%- endif %}
+
+{%- if keytab and hadoop %}
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: dcp-keytab-{{ name }}-cm
+binaryData:
+  {{ keytab }}: | 
+{{ keytabcontent|indent(4, True)}}
+---
+{%- endif %}
+
+{%- if passwd %}
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: dcp-passwd-{{ name }}-cm
+data:
+  passwd: |
+    root:x:0:0:root:/root:/bin/bash
+    daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+    bin:x:2:2:bin:/bin:/usr/sbin/nologin
+    sys:x:3:3:sys:/dev:/usr/sbin/nologin
+    sync:x:4:{{ runasuser }}:sync:/bin:/bin/sync
+    games:x:5:60:games:/usr/games:/usr/sbin/nologin
+    man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+    lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+    mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+    news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+    uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+    proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+    www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+    backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+    list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+    irc:x:39:39:ircd:/run/ircd:/usr/sbin/nologin
+    gnats:x:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/usr/sbin/nologin
+    nobody:x:{{ runasuser }}:{{ runasuser }}:nobody:/nonexistent:/usr/sbin/nologin
+    _apt:x:100:{{ runasuser }}::/nonexistent:/usr/sbin/nologin
+---
+{%- endif %}
+
+{%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: dcp-addcert-{{ name }}-cm
+data:
+{%- for cert in additionalCertificate %}
+  {{cert.name}}: |
+{{ cert.content|indent(4, True)}}
+{%- endfor %}
+---
+{%- endif %}
+{%- endif %}
+
+{%- if enabletmpdir %}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: "dcp-{{ name }}-launcher-{{ randomstring }}-pvc"
+  namespace: {{ namespace }}
+{%- if labels is defined and labels|length > 0 %}
+  labels:
+{%- for label in labels %}
+    {{ label.name }}: "{{ label.value }}"
+{%- endfor %}
+{%- endif %}
+spec:
+  storageClassName: {{ storageclassname }}
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ tempdirsize }}Gi
+---
+{%- endif %}
+
+{%- if enableui %}
+apiVersion: v1
+kind: Service
+metadata:
+  name: dcp-{{ name }}-launcher-{{ randomstring }}-svc
+spec:
+  selector:
+    dcp-application-name: {{ name }}
+    dcp-release: dcp-spark-application
+    managed-by: dcp
+    spark-role: driver
+  type: ClusterIP
+  ports:
+  - name: spark-ui
+    protocol: TCP
+    port: 4040
+    targetPort: 4040
+---
+{%- endif %}
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "dcp-{{ name }}-launcher-{{ randomstring }}"
+  namespace: {{ namespace }}
+  {%- if annotations is defined and annotations|length > 0 %}
+  annotations:
+  {%- for annotation in annotations %}
+    {{ annotation.name }}: "{{ annotation.value }}"
+  {%- endfor %}
+  {%- endif %}  
+{%- if labels is defined and labels|length > 0 %}
+  labels:
+{%- for label in labels %}
+    {{ label.name }}: "{{ label.value }}"
+{%- endfor %}
+{%- endif %}
+spec:
+  terminationGracePeriodSeconds: 10
+  serviceAccountName: {{ servicecaccount }}
+
+  {%- if dnsconfig %}
+  dnsConfig:
+{{ dnsconfig|indent(4, True)}}
+  {%- endif %}
+
+  securityContext:
+    {%- if driverPodScc is defined and driverPodScc|length > 0 %}
+    {%- for podscc in driverPodScc %}
+    {{ podscc }}
+    {%- endfor %}
+    {%- endif %}
+
+  imagePullSecrets:
+    {%- if sparksecrets is defined and sparksecrets|length > 0 %}
+    {%- for sparksecret in sparksecrets %}
+    - name: {{ sparksecret }}
+    {%- endfor %}
+    {%- endif %}
+
+  {%- if enablelauncherinitcontainer %}
+  initContainers:
+    - name: dcp-spark-template
+      image: {{ sparkinitimage }}
+      imagePullPolicy: IfNotPresent
+      command: 
+      - sh
+      - -c
+      - |
+        {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+        cp $JAVA_HOME/lib/security/cacerts /opt/finalcacert/cacerts
+        chmod 777 /opt/finalcacert/cacerts
+        {%- for cert in additionalCertificate %}
+        keytool -import -noprompt -trustcacerts -alias {{cert.name}} -file /opt/addcert/{{cert.name}} -keystore /opt/finalcacert/cacerts -storepass changeit
+        {%- endfor %}
+        {%- endif %}
+
+        {%- if not useconfigmap %}
+
+        cat << EOF > /opt/spark/template/driver.yaml
+        apiVersion: v1
+        kind: Pod
+        {%- if yscheduler %}
+        metadata:
+          annotations:
+            yunikorn.apache.org/schedulingPolicyParameters: "placeholderTimeoutSeconds=30 gangSchedulingStyle=Hard"
+            yunikorn.apache.org/task-group-name: "spark-driver-{{ name }}-{{ randomstring }}"
+            yunikorn.apache.org/task-groups: |-
+              [{
+                  "name": "spark-driver-{{ name }}-{{ randomstring }}",
+                  "minMember": 1,
+                  "minResource": {
+                    "cpu": "{{ ydrivermincpu }}m",
+                    "memory": "{{ yexdrivermincpu }}Mi"
+                  }
+                },
+                {
+                  "name": "spark-executor-{{ name }}-{{ randomstring }}",
+                  "minMember":{{ ypodgroupsminimum }},
+                  "minResource": {
+                    "cpu": "{{ yexecutormincpu }}m",
+                    "memory": "{{ yexecutorminmemory }}Mi"
+                  }
+              }]
+        {%- endif %}
+        spec:
+          {%- if topologyenabled %}
+          {%- if topologytype ==  "group" %} 
+          affinity:
+            podAffinity: 
+              preferredDuringSchedulingIgnoredDuringExecution: 
+              - weight: 100  
+                podAffinityTerm:
+                  labelSelector:
+                    matchExpressions:
+                    {%- for label in executorLabels %}
+                    - key: {{ label.name }} 
+                      operator: In 
+                      values:
+                      - {{ label.value }}
+                    {%- endfor %}
+                  topologyKey: kubernetes.io/hostname
+          {%- endif %}
+          {%- if topologytype ==  "spread" %} 
+          affinity:
+            podAntiAffinity: 
+              preferredDuringSchedulingIgnoredDuringExecution: 
+              - weight: 100  
+                podAffinityTerm:
+                  labelSelector:
+                    matchExpressions:
+                    {%- for label in executorLabels %}
+                    - key: {{ label.name }} 
+                      operator: In 
+                      values:
+                      - {{ label.value }}
+                    {%- endfor %}
+                  topologyKey: kubernetes.io/hostname
+          {%- endif %}
+          {%- endif %}
+          volumes:
+          {%- if passwd %}
+            - name: passwd
+              configMap:
+                name: dcp-passwd-{{ name }}-cm
+          {%- endif %}
+          {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+            - name: finalcacert
+              emptyDir: {}
+            - name: addcert
+              configMap:
+                name: dcp-addcert-{{ name }}-cm
+          {%- endif %}
+          {%- if kerberos %}
+            - name: keytabs
+              configMap:
+                name: dcp-keytab-{{ name }}-cm
+          {%- endif %}
+          {%- if dnsconfig %}
+          dnsConfig:
+{{ dnsconfig|indent(12, True)}}
+          {%- endif %}
+          {%- if hostaliases %}
+          hostAliases:
+            {{ hostaliases|indent(12)}}
+          {%- endif %}
+
+          securityContext:
+            {%- if driverPodScc is defined and driverPodScc|length > 0 %}
+            {%- for scc in driverPodScc %}
+            {{ scc }}
+            {%- endfor %}
+            {%- endif %}
+
+          {%- if enablesparkinitcontainer %}
+          initContainers:
+            - name: init-driver
+              image: {{ sparkinitimage }}
+              imagePullPolicy: "IfNotPresent"
+              command:
+                - sh
+                - -c
+                - |
+                  {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+                  cp $JAVA_HOME/lib/security/cacerts /opt/finalcacert/cacerts
+                  chmod 777 /opt/finalcacert/cacerts
+                  {%- for cert in additionalCertificate %}
+                  #keytool -v -list -keystore /opt/finalcacert/cacerts -storepass changeit | grep dcp-{{cert.name}}
+                  keytool -import -noprompt -trustcacerts -alias dcp-{{cert.name}} -file /opt/addcert/{{cert.name}} -keystore /opt/finalcacert/cacerts -storepass changeit
+                  {%- endfor %}
+                  {%- endif %}     
+              volumeMounts:
+                {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+                - name: finalcacert
+                  mountPath: /opt/finalcacert
+                - name: addcert
+                  mountPath: /opt/addcert
+                  {%- endif %}
+          {%- endif %}
+          containers:
+            - name: driver
+              securityContext:
+                {%- if driverContainerScc is defined and driverContainerScc|length > 0 %}
+                {%- for scc in driverContainerScc %}
+                {{ scc }}
+                {%- endfor %}
+                {%- endif %}
+              volumeMounts:
+                {%- if kerberos %}
+                - name: keytabs
+                  mountPath: /tmp/keytabs
+                {%- endif %}
+                {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+                - name:  finalcacert
+                  mountPath: /opt/finalcacert
+                - name: addcert
+                  mountPath: /opt/addcert
+                {%- endif %}
+                {%- if passwd %}
+                - name: passwd
+                  mountPath: /etc/passwd
+                  subPath: passwd
+                {%- endif %}
+        EOF
+        
+        cat << EOF > /opt/spark/template/executor.yaml
+        apiVersion: v1
+        kind: Pod
+        {%- if yscheduler %}
+        metadata:
+          annotations:
+            yunikorn.apache.org/task-group-name: "spark-executor-{{ name }}-{{ randomstring }}"
+        {%- endif %}
+        spec:
+          {%- if topologyenabled %}
+          {%- if topologytype ==  "group" %} 
+          affinity:
+            podAffinity: 
+              preferredDuringSchedulingIgnoredDuringExecution: 
+              - weight: 100  
+                podAffinityTerm:
+                  labelSelector:
+                    matchExpressions:
+                    {%- for label in executorLabels %}
+                    - key: {{ label.name }} 
+                      operator: In 
+                      values:
+                      - {{ label.value }}
+                    {%- endfor %}
+                  topologyKey: kubernetes.io/hostname
+          {%- endif %}
+          {%- if topologytype ==  "spread" %} 
+          affinity:
+            podAntiAffinity: 
+              preferredDuringSchedulingIgnoredDuringExecution: 
+              - weight: 100  
+                podAffinityTerm:
+                  labelSelector:
+                    matchExpressions:
+                    {%- for label in executorLabels %}
+                    - key: {{ label.name }} 
+                      operator: In 
+                      values:
+                      - {{ label.value }}
+                    {%- endfor %}
+                  topologyKey: kubernetes.io/hostname
+          {%- endif %}
+          {%- endif %}        
+          volumes:
+          {%- if passwd %}
+            - name: passwd
+              configMap:
+                name: dcp-passwd-{{ name }}-cm
+          {%- endif %}
+          {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+            - name: finalcacert
+              emptyDir: {}
+            - name: addcert
+              configMap:
+                name: dcp-addcert-{{ name }}-cm
+          {%- endif %}
+          {%- if kerberos %}        
+            - name: keytabs
+              configMap:
+                name: dcp-keytab-{{ name }}-cm
+          {%- endif %}
+          {%- if dnsconfig %}
+          dnsConfig:
+{{ dnsconfig|indent(12, True)}}
+          {%- endif %}
+          {%- if hostaliases %}
+          hostAliases:
+            {{ hostaliases|indent(12)}}
+          {%- endif %}
+          securityContext:
+            {%- if executorPodScc is defined and executorPodScc|length > 0 %}
+            {%- for scc in executorPodScc %}
+            {{ scc }}
+            {%- endfor %}
+            {%- endif %}
+          
+          {%- if enablesparkinitcontainer %}
+          initContainers:
+            - name: init-executor
+              image: {{ sparkinitimage }}
+              imagePullPolicy: "IfNotPresent"
+              command:
+                - sh
+                - -c
+                - |
+                  {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+                  cp $JAVA_HOME/lib/security/cacerts /opt/finalcacert/cacerts
+                  chmod 777 /opt/finalcacert/cacerts
+                  {%- for cert in additionalCertificate %}
+                  #keytool -v -list -keystore /opt/finalcacert/cacerts -storepass changeit | grep dcp-{{cert.name}}
+                  keytool -import -noprompt -trustcacerts -alias dcp-{{cert.name}} -file /opt/addcert/{{cert.name}} -keystore /opt/finalcacert/cacerts -storepass changeit
+                  {%- endfor %}
+                  {%- endif %}                       
+              volumeMounts:
+                {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+                - name: finalcacert
+                  mountPath: /opt/finalcacert
+                - name: addcert
+                  mountPath: /opt/addcert
+                {%- endif %}
+          {%- endif %}
+          containers:
+            - name: executor
+              securityContext:
+                {%- if executorContainerScc is defined and executorContainerScc|length > 0 %}
+                {%- for scc in executorContainerScc %}
+                {{ scc }}
+                {%- endfor %}
+                {%- endif %}
+              volumeMounts:
+                {%- if kerberos %}
+                - name: keytabs
+                  mountPath: /tmp/keytabs
+                {%- endif %}
+                {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+                - name:  finalcacert
+                  mountPath: /opt/finalcacert
+                - name: addcert
+                  mountPath: /opt/addcert
+                {%- endif %}
+                {%- if passwd %}
+                - name: passwd
+                  mountPath: /etc/passwd
+                  subPath: passwd
+                {%- endif %}
+        EOF
+        {%- if certificate %}
+        cat << EOF > /tmp/kubecert.pem
+        {{ certificate|indent(8)}}
+        EOF
+        {%- endif %}
+
+        {%- endif %}
+
+      volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+        - name: finalcacert
+          mountPath: /opt/finalcacert
+        - name: addcert
+          mountPath: /opt/addcert
+        {%- endif %}
+        - name: sparktemplate
+          mountPath: /opt/spark/template
+        
+  {%- endif %}
+  # Starter
+  containers:
+    - name: dcp-spark-launcher
+      image: "{{ imagename }}"
+      imagePullPolicy: IfNotPresent
+      command:
+        - sh
+        - -c
+        - |
+          java {%- if additionalCertificate is defined and additionalCertificate|length > 0 %} -Djavax.net.ssl.trustStore=/opt/finalcacert/cacerts -Djavax.net.ssl.trustStorePassword=changeit {%- endif %} -Dcom.amazonaws.sdk.disableCertChecking=true -cp /opt/spark/conf:/opt/spark/jars/* -XX:+IgnoreUnrecognizedVMOptions --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.nio.cs=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/sun.util.calendar=ALL-UNNAMED --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED \
+            org.apache.spark.deploy.SparkSubmit \
+            --deploy-mode cluster \
+            --verbose \
+            {%- if configlines is defined and configlines|length > 0 %}
+            {%- for configline in configlines %}
+            {{ configline }} \
+            {%- endfor %}
+            {%- endif %}
+            {%- if classtype %}
+            --class {{ sparkmainapplication }} \{%- endif %}
+            {%- if sparkextrajars is defined and sparkextrajars|length > 0 %}
+            --jars {{ sparkextrajars }} \
+            {%- endif %}
+            {%- if sparktype == "Python" %}
+            {%- if sparkextrapyListStr is defined and sparkextrapyListStr|length > 0 %}
+            --py-files {{ sparkextrapyListStr }} \
+            {%- endif %}
+            {%- endif %}
+            {%- if sparkextrafiles is defined and sparkextrafiles|length > 0 %}
+            --files {{ sparkextrafiles }} \
+            {%- endif %}
+            {{ sparkmainjar }} \
+            {%- if sparkargs is defined and sparkargs|length > 0 %}
+            {{ sparkargs | join(' ') }}
+            {%- endif %}
+
+      securityContext:
+        {%- if driverContainerScc is defined and driverContainerScc|length > 0 %}
+        {%- for containerscc in driverContainerScc %}
+        {{ containerscc }}
+        {%- endfor %}
+        {%- endif %}
+      env:
+        - name: SPARK_HOME
+          value: /opt/spark
+      resources:
+        requests:
+          cpu: "10m"
+          memory: "512M"
+        limits:
+          cpu: "500m"
+          memory: "512M"
+      volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        {%- if passwd %}
+        - name: passwd
+          mountPath: /etc/passwd
+          subPath: passwd
+        {%- endif %}
+        {%- if kerberos %}
+        - name: keytabs
+          mountPath: /tmp/keytabs
+        {%- endif %}
+        {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+        - name: finalcacert
+          mountPath: /opt/finalcacert
+        - name: addcert
+          mountPath: /opt/addcert
+        {%- endif %}
+        {%- if useconfigmap %}
+        - name: sparkconf
+          mountPath: /opt/spark/conf/spark-defaults.conf
+          subPath: spark-defaults.conf
+        {%- endif %}
+        - name: sparktemplate
+          mountPath: /opt/spark/template
+
+      {%- endif %}
+  restartPolicy: OnFailure
+  volumes:  
+    - name: tmp
+      {%- if enabletmpdir %}
+      persistentVolumeClaim:
+        claimName: dcp-{{ name }}-launcher-{{ randomstring }}-pvc
+      {%- else %}
+      emptyDir: {}
+      {%- endif %}
+    {%- if passwd %}
+    - name: passwd
+      configMap:
+        name: dcp-passwd-{{ name }}-cm
+    {%- endif %}      
+    {%- if kerberos %}
+    - name: keytabs
+      configMap:
+        name: dcp-keytab-{{ name }}-cm
+      {%- endif %}
+    {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+    - name: finalcacert
+      emptyDir: {}
+    - name: addcert
+      configMap:
+        name: dcp-addcert-{{ name }}-cm
+    {%- endif %}
+    {%- if useconfigmap %}
+    - name: sparkconf
+      configMap:
+        name: dcp-sparkconf-{{ name }}-cm
+    - name: sparktemplate
+      configMap:
+        name: dcp-sparktemplate-{{ name }}-cm
+    {%- else %}
+    - name: sparktemplate
+      emptyDir: {}
+    {%- endif %}
+  {%- endif %}

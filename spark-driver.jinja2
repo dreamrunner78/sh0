@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: Pod
+{%- if yscheduler %}
+metadata:
+  annotations:
+    yunikorn.apache.org/schedulingPolicyParameters: "placeholderTimeoutSeconds=30 gangSchedulingStyle=Hard"
+    yunikorn.apache.org/task-group-name: "spark-driver-{{ name }}-{{ randomstring }}"
+    yunikorn.apache.org/task-groups: |-
+      [{
+          "name": "spark-driver-{{ name }}-{{ randomstring }}",
+          "minMember": 1,
+          "minResource": {
+            "cpu": "{{ ydrivermincpu }}m",
+            "memory": "{{ yexdrivermincpu }}Mi"
+          }
+        },
+        {
+          "name": "spark-executor-{{ name }}-{{ randomstring }}",
+          "minMember":{{ ypodgroupsminimum }},
+          "minResource": {
+            "cpu": "{{ yexecutormincpu }}m",
+            "memory": "{{ yexecutorminmemory }}Mi"
+          }
+      }]
+{%- endif %}
+spec:
+  volumes:
+  {%- if passwd %}
+    - name: passwd
+      configMap:
+        name: dcp-passwd-{{ name }}-cm
+  {%- endif %}
+  {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+    - name: finalcacert
+      emptyDir: {}
+    - name: addcert
+      configMap:
+        name: dcp-addcert-{{ name }}-cm
+  {%- endif %}
+  {%- if kerberos %}
+    - name: keytabs
+      configMap:
+        name: dcp-keytab-{{ name }}-cm
+  {%- endif %}
+  {%- if dnsconfig %}
+  dnsConfig:
+    searches:
+{{ dnsconfig|indent(6)}}
+  {%- endif %}
+  {%- if hostaliases %}
+  hostAliases:
+{{ hostaliases|indent(6)}}
+  {%- endif %}
+
+  securityContext:
+    {%- if driverPodScc is defined and driverPodScc|length > 0 %}
+    {%- for scc in driverPodScc %}
+    {{ scc }}
+    {%- endfor %}
+    {%- endif %}
+
+  {%- if enablesparkinitcontainer %}
+  initContainers:
+    - name: init-driver
+      image: {{ sparkinitimage }}
+      imagePullPolicy: "IfNotPresent"
+      command:
+        - sh
+        - -c
+        - |
+          {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+          cp {{ cacert }} /opt/finalcacert/cacerts
+          chmod 777 /opt/finalcacert/cacerts
+          {%- for cert in additionalCertificate %} 
+          keytool -import -noprompt -trustcacerts -alias {{cert.name}} -file /opt/addcert/{{cert.name}} -keystore /opt/finalcacert/cacerts -storepass changeit
+          {%- endfor %}
+          {%- endif %}
+      volumeMounts:
+        {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+        - name: finalcacert
+          mountPath: /opt/finalcacert
+        - name: addcert
+          mountPath: /opt/addcert
+          {%- endif %}
+  {%- endif %}
+  containers:
+    - name: driver
+      securityContext:
+        {%- if driverContainerScc is defined and driverContainerScc|length > 0 %}
+        {%- for scc in driverContainerScc %}
+        {{ scc }}
+        {%- endfor %}
+        {%- endif %}
+      volumeMounts:
+        {%- if kerberos %}
+        - name: keytabs
+          mountPath: /tmp/keytabs
+        {%- endif %}
+        {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+        - name:  finalcacert
+          mountPath: /opt/finalcacert
+        - name: addcert
+          mountPath: /opt/addcert
+        {%- endif %}
+        {%- if passwd %}
+        - name: passwd
+          mountPath: /etc/passwd
+          subPath: passwd
+        {%- endif %}

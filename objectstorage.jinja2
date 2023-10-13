@@ -1,0 +1,18 @@
+connector.name=hive
+{%- if 'hms' == metastoretype %}
+hive.metastore.uri=thrift://{{ hmsurl }}:{{ hmsport }}
+{%- elif 'file' == metastoretype %}
+hive.metastore=file
+hive.metastore.catalog.dir=file:///opt/trino/tmp
+hive.temporary-staging-directory-path=file:///opt/trino/tmp
+hive.metastore-refresh-interval=1s
+{%- endif %}
+hive.s3.endpoint={{ endpoint }}
+hive.s3.aws-access-key={{ accesskey }}
+hive.s3.aws-secret-key={{ secretkey }}
+hive.s3.ssl.enabled={{ enablessl }}
+hive.allow-drop-table=true
+hive.s3.path-style-access={{ styleaccess }}
+hive.non-managed-table-writes-enabled=true
+
+{{ extrasconfiguration }}

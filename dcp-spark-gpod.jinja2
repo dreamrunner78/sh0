@@ -1,0 +1,234 @@
+apiVersion: "sparkoperator.k8s.io/v1beta2"
+kind: SparkApplication
+metadata:
+  name: "{{name}}"
+  namespace: "{{namespace}}"
+spec:
+  type: {{sparktype}}
+  mode: cluster
+  image: "{{ imagename }}"
+  imagePullPolicy: "IfNotPresent"
+  mainClass: {{ sparkmainapplication }}
+  mainApplicationFile: "{{ sparkmainjar }}"
+  {%- if sparkargs is defined and sparkargs|length > 0 %}
+  arguments:
+  {%- for sparkarg in sparkargs %}
+    - "{{ sparkarg }}"
+  {%- endfor %}
+  {%- endif %}
+  timeToLiveSeconds: {{timeToLiveSeconds}}
+  sparkVersion: "{{sparkVersion}}"
+  dynamicAllocation:
+    enabled: {{daenabled}}
+    initialExecutors: {{initialExecutors}}
+    minExecutors: {{minExecutors}}
+    maxExecutors: {{maxExecutors}}
+  deps:
+    {%- if sparkextrajarList is defined and sparkextrajarList|length > 0 %}
+    jars:
+    {%- for sparkextrajar in sparkextrajarList %}
+      - {{ sparkextrajar }}
+    {%- endfor %}
+    {%- endif %}
+    {%- if sparktype == "Python" %}
+    {%- if sparkextrapyList is defined and sparkextrapyList|length > 0 %}        
+    pyFiles:
+    {%- for sparkextrapy in sparkextrapyList %}
+      - {{ sparkextrapy }}
+    {%- endfor %}
+    {%- endif %}
+    {%- endif %}
+    {%- if sparkextrafilesList is defined and sparkextrafilesList|length > 0 %}
+    files:
+    {%- for sparkextrafiles in sparkextrafilesList %}
+      - {{ sparkextrafiles }}
+    {%- endfor %}
+    {%- endif %}
+  sparkConf:
+    # spark ui
+    spark.ui.port: "4040"
+    {%- if sparkconfKeyValue is defined and sparkconfKeyValue|length > 0 %}
+    {%- for item in sparkconfKeyValue %}
+    {{ item.name }}: "{{item.value}}"
+    {%- endfor %}
+    {%- endif %}
+    {%- if hadoop %}
+    spark.kubernetes.hadoop.configMapName: "dcp-hadoop-{{ name }}-cm"
+    {%- endif %}
+    {%- if kerberos %}
+    spark.kubernetes.kerberos.krb5.configMapName: "dcp-kerberos-{{ name }}-cm"
+    spark.kerberos.keytab: "/tmp/keytabs/{{ keytab }}"
+    spark.kerberos.principal: "{{ principal }}"
+    {%- endif %}
+  restartPolicy:
+    type: OnFailure
+    onFailureRetries: {{onFailureRetries}}
+    onFailureRetryInterval: {{onFailureRetryInterval}}
+    onSubmissionFailureRetries: {{onSubmissionFailureRetries}}
+    onSubmissionFailureRetryInterval: {{onSubmissionFailureRetryInterval}}
+  {%- if hadoop %}
+  hadoopConfigMap: dcp-hadoop-{{ name }}-cm
+  {%- endif %}
+  volumes:
+  {%- if passwd %}
+    - name: passwd
+      configMap:
+        name: dcp-passwd-{{ name }}-cm
+  {%- endif %}
+  {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+    - name: finalcacert
+      emptyDir: {}
+    - name: addcert
+      configMap:
+        name: dcp-addcert-{{ name }}-cm
+    {%- endif %}
+    {%- if kerberos %}
+    - name: keytabs
+      configMap:
+        name: dcp-keytab-{{ name }}-cm
+    {%- endif %}
+  # Driver Spec.
+  driver:
+    cores: {{driverrequestcore}}
+    coreLimit: "{{driverlimitcore}}{% if driverunitlimitcore == "m" %}m{% endif %}"
+    memory: "{{driverlimitmemory}}{{driverunitmemory}}"
+    {%- if driverextrajava is defined and driverextrajava|length > 0 %}
+    javaOptions: "{{driverextrajava}} -Dcom.amazonaws.sdk.disableCertChecking=true "
+    {%- endif %}
+    {%- if labels is defined and labels|length > 0 %}
+    labels:
+      {%- for label in labels %}
+      {{ label.name }}: "{{ label.value }}"
+      {%- endfor %}
+    {%- endif %}
+    serviceAccount: {{servicecaccount}}
+    {%- if driverPodScc is defined and driverPodScc|length > 0 %}
+    podSecurityContext:
+      {%- for scc in driverPodScc %}
+      {{ scc }}
+      {%- endfor %}
+    {%- endif %}
+    {%- if driverContainerScc is defined and driverContainerScc|length > 0 %}
+    securityContext:
+      {%- for scc in driverContainerScc %}
+      {{ scc }}
+      {%- endfor %}
+    {%- endif %}
+    # envSecretKeyRefs:
+    {%- if dnsconfig %}
+    dnsConfig:
+{{ dnsconfig|indent(6, True)}}
+    {%- endif %}
+    # InitContainers
+    {%- if enablesparkinitcontainer %}
+    initContainers:
+      - name: "init-driver"
+        image: {{ sparkinitimage }}
+        imagePullPolicy: "IfNotPresent"
+        volumeMounts:
+          {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+          - name: finalcacert
+            mountPath: /opt/finalcacert
+          - name: addcert
+            mountPath: /opt/addcert
+          {%- endif %}
+        command: 
+          - sh
+          - -c
+          - |
+            {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+            cp {{ cacert }} /opt/finalcacert/cacerts
+            chmod 777 /opt/finalcacert/cacerts
+            {%- for cert in additionalCertificate %} 
+            keytool -import -noprompt -trustcacerts -alias {{cert.name}} -file /opt/addcert/{{cert.name}} -keystore /opt/finalcacert/cacerts -storepass changeit
+            {%- endfor %}
+            {%- endif %} 
+    {%- endif %}
+    volumeMounts:
+     {%- if kerberos %}
+      - name: keytabs
+        mountPath: /tmp/keytabs
+     {%- endif %}
+     {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+      - name: finalcacert
+        mountPath: /opt/finalcacert
+      - name: addcert
+        mountPath: /opt/addcert
+     {%- endif %}
+     {%- if passwd %}
+      - name: passwd
+        mountPath: /etc/passwd
+        subPath: passwd
+     {%- endif %}
+  # Executor Spec
+  executor:
+    cores: {{executorlimitcore}}
+    instances: {{executorinstances}}
+    memory: "{{executorlimitmemory}}{{executorunitmemory}}"
+    {%- if executorextrajava is defined and executorextrajava|length > 0 %}
+    javaOptions: "{{executorextrajava}} -Dcom.amazonaws.sdk.disableCertChecking=true "
+    {%- endif %}    
+    labels:
+      {%- for label in labels %}
+      {{ label.name }}: "{{ label.value }}"
+      {%- endfor %}
+    {%- endif %}
+    serviceAccount: {{servicecaccount}}
+    {%- if executorPodScc is defined and executorPodScc|length > 0 %}
+    podSecurityContext:
+      {%- for scc in executorPodScc %}
+      {{ scc }}
+      {%- endfor %}
+    {%- endif %}
+    {%- if executorContainerScc is defined and executorContainerScc|length > 0 %}
+    securityContext:
+      {%- for scc in executorContainerScc %}
+      {{ scc }}
+      {%- endfor %}
+    {%- endif %}
+    # envSecretKeyRefs:
+    {%- if dnsconfig %}
+    dnsConfig:
+{{ dnsconfig|indent(6, True)}}
+    {%- endif %}
+    # InitContainers
+    {%- if enablesparkinitcontainer %}
+    initContainers:
+      - name: "init-driver"
+        image: {{ sparkinitimage }}
+        imagePullPolicy: "IfNotPresent"
+        volumeMounts:
+          {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+          - name: finalcacert
+            mountPath: /opt/finalcacert
+          - name: addcert
+            mountPath: /opt/addcert
+          {%- endif %}
+        command: 
+          - sh
+          - -c
+          - |
+            {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+            cp {{ cacert }} /opt/finalcacert/cacerts
+            chmod 777 /opt/finalcacert/cacerts
+            {%- for cert in additionalCertificate %} 
+            keytool -import -noprompt -trustcacerts -alias {{cert.name}} -file /opt/addcert/{{cert.name}} -keystore /opt/finalcacert/cacerts -storepass changeit
+            {%- endfor %}
+            {%- endif %} 
+    {%- endif %}
+    volumeMounts:
+     {%- if kerberos %}
+      - name: keytabs
+        mountPath: /tmp/keytabs
+     {%- endif %}
+     {%- if additionalCertificate is defined and additionalCertificate|length > 0 %}
+      - name: finalcacert
+        mountPath: /opt/finalcacert
+      - name: addcert
+        mountPath: /opt/addcert
+     {%- endif %}
+     {%- if passwd %}
+      - name: passwd
+        mountPath: /etc/passwd
+        subPath: passwd
+     {%- endif %}    
